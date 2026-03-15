@@ -37,7 +37,7 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 font-sans">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-10 space-y-4">
-           <img src="https://mental-orange-t56uiavvis-coyn24mp43.edgeone.app/logo_cropped.png" alt="DAIT" className="h-16 w-auto" />
+           <img src="/dait-logo.png" alt="DAIT" className="h-16 w-auto" />
            <div className="text-center">
              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Institutional Portal</h1>
              <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-1">DAIT Grievance management</p>

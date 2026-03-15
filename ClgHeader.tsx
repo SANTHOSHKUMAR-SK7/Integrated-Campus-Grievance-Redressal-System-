@@ -11,7 +11,7 @@ const CollegeHeader = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <img
-              src="https://mental-orange-t56uiavvis-coyn24mp43.edgeone.app/logo_cropped.png"
+              src="/dait-logo.png"
               alt="Dhaanish Ahmed Institute of Technology Logo"
               className="h-24 w-auto object-contain drop-shadow-sm"
             />

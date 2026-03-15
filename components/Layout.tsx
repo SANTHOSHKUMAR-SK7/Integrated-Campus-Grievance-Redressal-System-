@@ -90,7 +90,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <aside className="w-[300px] bg-white border-r border-slate-200 flex flex-col fixed h-screen z-30 shadow-[10px_0_30px_rgba(0,0,0,0.015)]">
         <div className="p-10 pb-12 flex items-center gap-5">
           <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center p-2.5 shadow-sm border border-indigo-100/50">
-            <img src="https://mental-orange-t56uiavvis-coyn24mp43.edgeone.app/logo_cropped.png" alt="DAIT" className="h-full w-auto object-contain" />
+            <img src="/dait-logo.png" alt="DAIT" className="h-full w-auto object-contain" />
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-black text-slate-900 leading-tight tracking-tighter">DAIT HUB</h1>

@@ -10,7 +10,7 @@ const Landing: React.FC = () => {
       <header className="px-12 py-8 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <img 
-            src="https://mental-orange-t56uiavvis-coyn24mp43.edgeone.app/logo_cropped.png" 
+            src="/dait-logo.png" 
             alt="DAIT Institutional Logo" 
             className="h-16 w-auto" 
           />
@@ -66,7 +66,7 @@ const Landing: React.FC = () => {
       <footer className="bg-slate-950 py-16 px-12 border-t border-slate-900">
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
            <div className="flex items-center gap-6 grayscale opacity-50">
-             <img src="https://mental-orange-t56uiavvis-coyn24mp43.edgeone.app/logo_cropped.png" alt="Logo" className="h-10 w-auto" />
+             <img src="/dait-logo.png" alt="Logo" className="h-10 w-auto" />
              <p className="text-slate-500 text-sm font-bold tracking-tight">Dhaanish Ahmed Institute of Technology</p>
            </div>
            <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">© 2025 Institutional Operations | DAIT Academic Oversight</p>
