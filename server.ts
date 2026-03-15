@@ -131,7 +131,7 @@ async function sendNotificationEmail(to: string, subject: string, text: string) 
   }
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"DAIT Grievance" <noreply@DAIT.edu.in>',
+      from: process.env.EMAIL_FROM || '"DAIT Grievance" <noreply@dait.com>',
       to,
       subject,
       text,
@@ -612,7 +612,7 @@ async function seed() {
     const hashedPassword = await bcrypt.hash('password', salt);
     console.log('Default hashed password generated');
     
-    const adminEmail = 'admin@DAIT.edu.in';
+    const adminEmail = 'admin@dait.com';
     const adminUser = await User.findOne({ email: adminEmail });
     
     if (!adminUser) {
@@ -637,9 +637,9 @@ async function seed() {
     if (count <= 1) {
       console.log('Seeding other initial users...');
       const initialUsers = [
-        { id: 'STU-01', name: 'Kj', role: 'Student', email: 'kj@DAIT.edu.in', password: hashedPassword },
-        { id: 'STAFF-TECH', name: 'Mr. Technical', role: 'Staff', email: 'tech@DAIT.edu.in', password: hashedPassword, department: 'Technical' },
-        { id: 'STAFF-ACAD', name: 'Dr. Academic', role: 'Staff', email: 'acad@DAIT.edu.in', password: hashedPassword, department: 'Academic' },
+        { id: 'STU-01', name: 'Kj', role: 'Student', email: 'sk@dait.com', password: hashedPassword },
+        { id: 'STAFF-TECH', name: 'Mr. Technical', role: 'Staff', email: 'tech@dait.com', password: hashedPassword, department: 'Technical' },
+        { id: 'STAFF-ACAD', name: 'Dr. Academic', role: 'Staff', email: 'acad@dait.com', password: hashedPassword, department: 'Academic' },
       ];
       await User.insertMany(initialUsers);
       console.log('Database seeded with initial users');

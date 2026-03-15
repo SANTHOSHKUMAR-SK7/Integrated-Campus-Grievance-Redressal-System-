@@ -266,7 +266,7 @@ const UserManagement: React.FC = () => {
                   value={newUser.email}
                   onChange={(e) => setNewUser({...newUser, email: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="e.g. john@DAIT.edu.in"
+                  placeholder="e.g. john@dait.com"
                 />
               </div>
               <div className="space-y-1">
