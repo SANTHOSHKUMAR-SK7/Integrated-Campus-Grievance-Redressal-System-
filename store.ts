@@ -75,7 +75,7 @@ export const getGrievances = async (): Promise<Grievance[]> => {
   }
 };
 
-export const saveGrievance = async (grievance: Grievance) => {
+export const saveGrievance = async (grievance: Partial<Grievance>) => {
   try {
     const response = await endpoints.grievances.submit(grievance);
     return response.data;

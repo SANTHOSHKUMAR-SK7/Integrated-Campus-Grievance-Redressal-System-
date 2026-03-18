@@ -71,6 +71,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <ICONS.Dashboard />, roles: [UserRole.STUDENT, UserRole.STAFF, UserRole.ADMIN] },
     { path: '/chatbot', label: 'Filing Assistant', icon: <ICONS.Chatbot />, roles: [UserRole.STUDENT] },
+    { path: '/manual-complaint', label: 'Manual Filing', icon: <ICONS.Raise />, roles: [UserRole.STUDENT] },
     { path: '/track', label: 'Case Tracker', icon: <ICONS.List />, roles: [UserRole.STUDENT] },
     { path: '/manage', label: 'Direct Worklist', icon: <ICONS.List />, roles: [UserRole.STAFF] },
     { path: '/users', label: 'User Directory', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>, roles: [UserRole.ADMIN] },

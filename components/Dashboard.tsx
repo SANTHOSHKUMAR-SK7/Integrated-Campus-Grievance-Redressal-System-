@@ -44,12 +44,19 @@ const Dashboard: React.FC = () => {
           <StatCard label="Resolved" value={stats.resolved} subtext="Verified closed" icon="✅" color="text-emerald-600" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ActionCard 
             title="Lodge New Concern" 
             desc="Use our AI-assisted filing system to submit institutional grievances with sentiment tracking."
             btnText="Launch AI Assistant"
             onClick={() => navigate('/chatbot')}
+          />
+          <ActionCard 
+            title="Manual Complaint Form" 
+            desc="Submit a grievance directly with structured details while the system computes priority automatically."
+            btnText="Open Manual Form"
+            variant="outline"
+            onClick={() => navigate('/manual-complaint')}
           />
           <ActionCard 
             title="Case History" 

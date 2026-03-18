@@ -197,6 +197,33 @@ const canMessageOnGrievance = (user: any, grievance: any) => {
   return canManageGrievance(user, grievance);
 };
 
+const VALID_DEPARTMENTS = ['Technical', 'Infrastructure', 'Academic', 'Administrative', 'Mess', 'Hostel', 'Transport', 'Other'];
+const VALID_STATUSES = ['pending', 'in-progress', 'resolved', 'closed'];
+
+const normalizeDepartment = (department?: string) => {
+  const normalized = String(department || '').trim().toLowerCase();
+  const match = VALID_DEPARTMENTS.find((item) => item.toLowerCase() === normalized);
+  return match || 'Other';
+};
+
+const computeSeverity = (text: string) => {
+  const normalized = text.toLowerCase();
+  if (/(emergency|critical|unsafe|injury|fire|shock|violence|threat)/.test(normalized)) return 'critical';
+  if (/(urgent|immediately|since yesterday|no water|no power|harassment|broken|leak|stopped)/.test(normalized)) return 'high';
+  if (/(issue|problem|delay|complaint|not working|slow)/.test(normalized)) return 'medium';
+  return 'low';
+};
+
+const computeSentiment = (text: string) => {
+  const normalized = text.toLowerCase();
+  if (/(urgent|critical|emergency)/.test(normalized)) return 'Urgent';
+  if (/(angry|worst|unacceptable|frustrating)/.test(normalized)) return 'Angry';
+  if (/(issue|problem|complaint|not working|no water|delay)/.test(normalized)) return 'Frustrated';
+  return 'Neutral';
+};
+
+const createGrievanceId = () => `DAIT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
 // --- API Routes ---
 
 // Auth
@@ -260,19 +287,36 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     console.log('User:', JSON.stringify(req.user));
     console.log('Body:', JSON.stringify(req.body, null, 2));
     
-    // Normalize fields to match enums
-    const status = (req.body.status || 'pending').toLowerCase();
-    const severity = (req.body.severity || 'Low').charAt(0).toUpperCase() + (req.body.severity || 'Low').slice(1).toLowerCase();
+    const title = String(req.body.title || '').trim() || 'General Concern';
+    const description = String(req.body.description || '').trim();
+    if (!description) {
+      return res.status(400).json({ message: 'Description is required' });
+    }
+
+    const department = normalizeDepartment(req.body.department);
+    const severity = computeSeverity(`${title} ${description}`);
+    const sentiment = req.body.sentiment || computeSentiment(description);
+    const status = VALID_STATUSES.includes(String(req.body.status || '').toLowerCase())
+      ? String(req.body.status).toLowerCase()
+      : 'pending';
+    const assignedStaff = await User.findOne({ role: 'Staff', department }).select('id');
+    const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
     
     const grievanceData = {
       ...req.body,
-      status: ['pending', 'in-progress', 'resolved', 'closed'].includes(status) ? status : 'pending',
-      severity: ['Low', 'Medium', 'High', 'Critical'].includes(severity) ? severity : 'Low',
+      id: grievanceId,
+      title,
+      description,
+      department,
+      severity,
+      sentiment,
+      status,
       studentId: req.user.id,
+      assignedToId: req.body.assignedToId || assignedStaff?.id || 'ADM-PRIN',
       timestamp: Date.now(),
       lastStatusChange: Date.now(),
       history: [{
-        status: ['pending', 'in-progress', 'resolved', 'closed'].includes(status) ? status : 'pending',
+        status,
         timestamp: Date.now(),
         userId: req.user.id,
         remark: 'Grievance submitted'

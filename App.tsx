@@ -12,6 +12,7 @@ import AdminAnalytics from './components/AdminAnalytics';
 import ProfileSettings from './components/ProfileSettings';
 import Login from './components/Login';
 import Landing from './components/Landing';
+import ManualGrievanceForm from './components/ManualGrievanceForm';
 import { isAuthenticated, getCurrentUser } from './store';
 import { UserRole } from './types';
 
@@ -43,6 +44,12 @@ const App: React.FC = () => {
           <Route path="/chatbot" element={
             <ProtectedRoute roles={[UserRole.STUDENT]}>
               <GrievanceChatbot />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/manual-complaint" element={
+            <ProtectedRoute roles={[UserRole.STUDENT]}>
+              <ManualGrievanceForm />
             </ProtectedRoute>
           } />
           
