@@ -180,6 +180,15 @@ const authenticate = (req: any, res: any, next: any) => {
   }
 };
 
+const canManageGrievance = (user: any, grievance: any) => {
+  if (!user || !grievance) return false;
+  if (user.role === 'Admin') return true;
+  if (user.role === 'Staff') {
+    return grievance.assignedToId === user.id || grievance.department === user.department;
+  }
+  return false;
+};
+
 // --- API Routes ---
 
 // Auth
@@ -292,22 +301,22 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
     const grievance = await Grievance.findOne({ id: req.params.id });
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
 
-    // Update logic
-    Object.assign(grievance, req.body);
-    await grievance.save();
-
-    // If status changed to resolved, notify student
-    if (req.body.status === 'resolved') {
-        const student = await User.findOne({ id: grievance.studentId });
-        if (student) {
-            createNotification(student.id, 'Grievance Resolved', `Your grievance #${grievance.id} has been marked as resolved.`, 'status_change', `/grievances/${grievance.id}`);
-        }
-    } else if (req.body.status) {
-        const student = await User.findOne({ id: grievance.studentId });
-        if (student) {
-            createNotification(student.id, 'Grievance Status Updated', `The status of your grievance #${grievance.id} has been changed to ${req.body.status}.`, 'status_change', `/grievances/${grievance.id}`);
-        }
+    if (!canManageGrievance(req.user, grievance)) {
+      return res.status(403).json({ message: 'Forbidden' });
     }
+
+    // This endpoint is reserved for reassignment/ownership updates.
+    const allowedUpdates = ['department', 'assignedToId', 'lastStatusChange', 'history'] as const;
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([key]) => allowedUpdates.includes(key as (typeof allowedUpdates)[number]))
+    );
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid grievance fields to update' });
+    }
+
+    Object.assign(grievance, updates);
+    await grievance.save();
 
     res.json(grievance);
   } catch (err) {
