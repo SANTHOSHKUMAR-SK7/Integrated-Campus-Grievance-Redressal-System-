@@ -42,11 +42,48 @@ const GrievanceChatbot: React.FC = () => {
     setMessages(prev => [...prev, { role: 'assistant', content }]);
   };
 
-  const handleSubmission = async (userMessage: string) => {
+  const normalizeDepartment = (value?: string): Department => {
+    const normalized = (value || '').trim().toLowerCase();
+    const departmentMap: Record<string, Department> = {
+      technical: Department.TECHNICAL,
+      infrastructure: Department.INFRASTRUCTURE,
+      academic: Department.ACADEMIC,
+      administrative: Department.ADMINISTRATIVE,
+      mess: Department.MESS,
+      hostel: Department.HOSTEL,
+      transport: Department.TRANSPORT,
+      other: Department.OTHER,
+    };
+    return departmentMap[normalized] || Department.OTHER;
+  };
+
+  const normalizeSeverity = (value?: string): Severity => {
+    const normalized = (value || '').trim().toLowerCase();
+    const severityMap: Record<string, Severity> = {
+      low: Severity.LOW,
+      medium: Severity.MEDIUM,
+      high: Severity.HIGH,
+      critical: Severity.CRITICAL,
+    };
+    return severityMap[normalized] || Severity.MEDIUM;
+  };
+
+  const normalizeStatus = (value?: string): Status => {
+    const normalized = (value || '').trim().toLowerCase();
+    const statusMap: Record<string, Status> = {
+      pending: Status.PENDING,
+      'in-progress': Status.IN_PROGRESS,
+      resolved: Status.RESOLVED,
+      closed: Status.CLOSED,
+    };
+    return statusMap[normalized] || Status.PENDING;
+  };
+
+  const handleSubmission = async (userMessage: string, chatHistory: ChatMessage[]) => {
     setIsTyping(true);
     try {
       if (state === 'IDLE' || state === 'COLLECTING') {
-        const result = await analyzeGrievanceState(userMessage, messages);
+        const result = await analyzeGrievanceState(userMessage, chatHistory);
         setAnalysis(result);
 
         if (!result.isDetailedEnough) {
@@ -69,7 +106,7 @@ const GrievanceChatbot: React.FC = () => {
           await finalizeGrievance();
         } else {
           addBotMessage("Re-analyzing session context...");
-          const updatedResult = await analyzeGrievanceState(userMessage, messages);
+          const updatedResult = await analyzeGrievanceState(userMessage, chatHistory);
           setAnalysis(updatedResult);
           addBotMessage(`Revised Summary: ${updatedResult.summary}\n\nProceed?`);
         }
@@ -84,9 +121,9 @@ const GrievanceChatbot: React.FC = () => {
   const finalizeGrievance = async () => {
     const grievanceId = 'DAIT-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
     const now = Date.now();
-    const dept = (analysis?.department as Department) || Department.OTHER;
+    const dept = normalizeDepartment(analysis?.department);
     const staffId = await getResponsibleStaffId(dept);
-    const initialStatus = (analysis?.initialStatus as Status) || Status.PENDING;
+    const initialStatus = normalizeStatus(analysis?.initialStatus);
 
     const newGrievance: Grievance = {
       id: grievanceId,
@@ -94,7 +131,7 @@ const GrievanceChatbot: React.FC = () => {
       timestamp: now,
       description: messages.filter(m => m.role === 'user').map(m => m.content).join('\n'),
       department: dept,
-      severity: (analysis?.severity as Severity) || Severity.LOW,
+      severity: normalizeSeverity(analysis?.severity),
       status: initialStatus,
       isAnonymous: isAnonymous,
       studentId: currentUser?.id || 'ANON',
@@ -141,9 +178,10 @@ const GrievanceChatbot: React.FC = () => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
     const msg = input.trim();
-    setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    const nextMessages = [...messages, { role: 'user' as const, content: msg }];
+    setMessages(nextMessages);
     setInput('');
-    handleSubmission(msg);
+    handleSubmission(msg, nextMessages);
   };
 
   return (

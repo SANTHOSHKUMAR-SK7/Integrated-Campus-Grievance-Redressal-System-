@@ -10,10 +10,11 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+const MODEL_NAME = "gemini-2.5-flash";
+
 export const analyzeGrievanceState = async (complaintText: string, history: ChatMessage[]) => {
   try {
     const ai = getAI();
-    const model = "gemini-3-flash-preview";
 
     const historyText = (history || []).map((m: any) => `${m.role}: ${m.content}`).join("\n");
 
@@ -29,7 +30,7 @@ export const analyzeGrievanceState = async (complaintText: string, history: Chat
     `;
 
     const result = await ai.models.generateContent({
-      model,
+      model: MODEL_NAME,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -56,9 +57,10 @@ export const analyzeGrievanceState = async (complaintText: string, history: Chat
     console.error('AI Error:', error);
     // Fallback logic if AI fails
     return {
-      isDetailedEnough: true,
+      isDetailedEnough: false,
+      followUpQuestion: 'Please describe the issue with the location, department, and what exactly happened.',
       summary: complaintText.slice(0, 50),
-      department: 'General',
+      department: 'Other',
       severity: 'Medium',
       sentiment: 'Neutral',
       initialStatus: 'pending',
@@ -70,7 +72,6 @@ export const analyzeGrievanceState = async (complaintText: string, history: Chat
 export const getStaffAssistance = async (grievance: any) => {
   try {
     const ai = getAI();
-    const model = "gemini-3-flash-preview";
 
     const prompt = `
       Case Details:
@@ -91,7 +92,7 @@ export const getStaffAssistance = async (grievance: any) => {
     `;
 
     const result = await ai.models.generateContent({
-      model,
+      model: MODEL_NAME,
       contents: prompt,
       config: {
         systemInstruction: "You are a professional Staff Problem Solver. Provide concise summaries and effective resolution strategies.",
@@ -108,7 +109,6 @@ export const getStaffAssistance = async (grievance: any) => {
 export const getGrievanceSummary = async (id: string, grievanceData?: any) => {
   try {
     const ai = getAI();
-    const model = "gemini-3-flash-preview";
 
     const prompt = `
       Analyze and summarize the following institutional grievance:
@@ -126,7 +126,7 @@ export const getGrievanceSummary = async (id: string, grievanceData?: any) => {
     `;
 
     const result = await ai.models.generateContent({
-      model,
+      model: MODEL_NAME,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
