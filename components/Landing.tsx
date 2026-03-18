@@ -69,7 +69,7 @@ const Landing: React.FC = () => {
              <img src="/dait-logo.png" alt="Logo" className="h-10 w-auto" />
              <p className="text-slate-500 text-sm font-bold tracking-tight">Dhaanish Ahmed Institute of Technology</p>
            </div>
-           <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">© 2025 Institutional Operations | DAIT Academic Oversight</p>
+           <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">© 2026 Institutional Operations | DAIT Academic Oversight</p>
          </div>
       </footer>
     </div>

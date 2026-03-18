@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'DAIT-secret-key-2025';
+const JWT_SECRET = process.env.JWT_SECRET || 'DAIT-secret-key-2026';
 
 // Middleware
 app.use(cors());

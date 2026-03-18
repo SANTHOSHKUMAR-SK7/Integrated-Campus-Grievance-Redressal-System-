@@ -57,7 +57,7 @@ const Login: React.FC = () => {
                  type="email" 
                  value={email}
                  onChange={(e) => setEmail(e.target.value)}
-                 placeholder="e.g. sk@dait.com"
+                 placeholder="Enter your email address"
                  className="w-full bg-[#F9FAFB] border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-300"
                  required
                />
@@ -72,16 +72,6 @@ const Login: React.FC = () => {
                  className="w-full bg-[#F9FAFB] border border-slate-200 rounded-xl px-5 py-3.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-300"
                  required
                />
-             </div>
-
-             <div className="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100/50">
-               <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Demo Credentials</p>
-               <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500">
-                 <div>Student: <span className="text-slate-900">sk@dait.com</span></div>
-                 <div>Staff: <span className="text-slate-900">tech@dait.com</span></div>
-                 <div>Admin: <span className="text-slate-900">admin@dait.com</span></div>
-                 <div>Pass: <span className="text-slate-900">password123</span></div>
-               </div>
              </div>
 
              {error && <div className="text-red-500 text-xs font-bold bg-red-50 py-3 rounded-xl border border-red-100 text-center animate-in shake duration-300">{error}</div>}
@@ -102,7 +92,7 @@ const Login: React.FC = () => {
            </div>
         </div>
         
-        <p className="mt-10 text-center text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em]">© 2025 DAIT Academic Unit</p>
+        <p className="mt-10 text-center text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em]">© 2026 DAIT Academic Unit</p>
       </div>
     </div>
   );
