@@ -59,45 +59,47 @@ const GrievanceTracker: React.FC = () => {
   if (!user) return null;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Institutional Record</h2>
-          <p className="text-sm font-medium text-slate-500 mt-1">Audit and interact with your personal grievance pipeline.</p>
+    <>
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">Institutional Record</h2>
+            <p className="text-sm font-medium text-slate-500 mt-1">Audit and interact with your personal grievance pipeline.</p>
+          </div>
+          <button onClick={() => navigate('/chatbot')} className="flex items-center gap-3 bg-indigo-600 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
+            <ICONS.Raise />
+            New Filing
+          </button>
         </div>
-        <button onClick={() => navigate('/chatbot')} className="flex items-center gap-3 bg-indigo-600 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
-          <ICONS.Raise />
-          New Filing
-        </button>
-      </div>
 
-      {/* Table & Filters (Simplified for space) */}
-      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
-              <tr>
-                <th className="px-10 py-5">Case Reference</th>
-                <th className="px-10 py-5">Summary</th>
-                <th className="px-10 py-5">Status</th>
-                <th className="px-10 py-5">Category</th>
-                <th className="px-10 py-5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {complaints.map(g => (
-                <tr key={g.id} className="hover:bg-slate-50 transition-all cursor-pointer group" onClick={() => setSelectedGrievance(g)}>
-                  <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
-                  <td className="px-10 py-6 text-sm font-bold text-slate-700">{g.summary || 'Awaiting Analysis'}</td>
-                  <td className="px-10 py-6"><span className={COLORS.status[g.status]}>{g.status}</span></td>
-                  <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.department}</span></td>
-                  <td className="px-10 py-6 text-right">
-                    <button className="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-all">Interact</button>
-                  </td>
+        {/* Table & Filters (Simplified for space) */}
+        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
+                <tr>
+                  <th className="px-10 py-5">Case Reference</th>
+                  <th className="px-10 py-5">Summary</th>
+                  <th className="px-10 py-5">Status</th>
+                  <th className="px-10 py-5">Category</th>
+                  <th className="px-10 py-5 text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {complaints.map(g => (
+                  <tr key={g.id} className="hover:bg-slate-50 transition-all cursor-pointer group" onClick={() => setSelectedGrievance(g)}>
+                    <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
+                    <td className="px-10 py-6 text-sm font-bold text-slate-700">{g.summary || 'Awaiting Analysis'}</td>
+                    <td className="px-10 py-6"><span className={COLORS.status[g.status]}>{g.status}</span></td>
+                    <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.department}</span></td>
+                    <td className="px-10 py-6 text-right">
+                      <button className="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-all">Interact</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -170,7 +172,7 @@ const GrievanceTracker: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

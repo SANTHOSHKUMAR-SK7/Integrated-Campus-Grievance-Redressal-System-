@@ -12,6 +12,111 @@ const getAI = () => {
 
 const MODEL_NAME = "gemini-2.5-flash";
 
+const getUserConversationText = (history: ChatMessage[], complaintText: string) => {
+  const priorUserText = (history || [])
+    .filter((m) => m.role === 'user')
+    .map((m) => m.content.trim())
+    .filter(Boolean)
+    .join('\n');
+
+  return [priorUserText, complaintText.trim()].filter(Boolean).join('\n').trim();
+};
+
+const detectDepartment = (text: string) => {
+  const normalized = text.toLowerCase();
+  if (/(hostel|warden|room|bathroom|water|toilet|washroom)/.test(normalized)) return 'Hostel';
+  if (/(mess|food|canteen|meal|kitchen)/.test(normalized)) return 'Mess';
+  if (/(bus|transport|van|driver|route)/.test(normalized)) return 'Transport';
+  if (/(class|faculty|professor|lecture|exam|marks|attendance|academic|department|cse|ece|it|mech)/.test(normalized)) return 'Academic';
+  if (/(wifi|internet|projector|computer|system|software|portal|technical|website|lab)/.test(normalized)) return 'Technical';
+  if (/(building|bench|fan|light|electrical|infrastructure|ceiling|floor|lift)/.test(normalized)) return 'Infrastructure';
+  if (/(office|certificate|fees|administration|administrative|clerk)/.test(normalized)) return 'Administrative';
+  return 'Other';
+};
+
+const detectSeverity = (text: string) => {
+  const normalized = text.toLowerCase();
+  if (/(emergency|urgent|critical|unsafe|danger|shock|fire|injury)/.test(normalized)) return 'Critical';
+  if (/(immediately|since yesterday|not working|no water|no power|serious|major)/.test(normalized)) return 'High';
+  if (/(issue|problem|delay|complaint)/.test(normalized)) return 'Medium';
+  return 'Low';
+};
+
+const detectSentiment = (text: string) => {
+  const normalized = text.toLowerCase();
+  if (/(urgent|immediately|critical|emergency)/.test(normalized)) return 'Urgent';
+  if (/(angry|worst|terrible|unacceptable)/.test(normalized)) return 'Angry';
+  if (/(frustrated|problem|issue|complaint|not working|no water)/.test(normalized)) return 'Frustrated';
+  return 'Neutral';
+};
+
+const hasLocation = (text: string) => {
+  const normalized = text.toLowerCase();
+  return /(room|hostel|block|floor|lab|building|classroom|canteen|library|office|bus|gate|department)/.test(normalized);
+};
+
+const hasIssueDescription = (text: string) => {
+  const normalized = text.toLowerCase();
+  return /(issue|problem|water|power|wifi|food|clean|dirty|leak|broken|delay|harass|complaint|not working|stopped)/.test(normalized);
+};
+
+const buildFollowUpQuestion = (text: string) => {
+  const missing: string[] = [];
+  if (!hasLocation(text)) missing.push('exact location');
+  if (!hasIssueDescription(text)) missing.push('what exactly happened');
+  if (!/(department|hostel|mess|transport|academic|technical|administrative|infrastructure|cse|ece|it|mech)/i.test(text)) {
+    missing.push('related department');
+  }
+
+  if (missing.length === 0) {
+    return 'Please add when this started and how it is affecting you.';
+  }
+
+  return `Please provide the ${missing.join(', ')}.`;
+};
+
+const buildSummary = (text: string) => {
+  const condensed = text.replace(/\s+/g, ' ').trim();
+  return condensed.length > 140 ? `${condensed.slice(0, 137)}...` : condensed;
+};
+
+const buildFallbackAnalysis = (complaintText: string, history: ChatMessage[]) => {
+  const fullText = getUserConversationText(history, complaintText);
+  const detailedEnough = hasLocation(fullText) && hasIssueDescription(fullText) && fullText.length >= 25;
+
+  return {
+    isDetailedEnough: detailedEnough,
+    followUpQuestion: detailedEnough ? 'Type Confirm to finalize filing.' : buildFollowUpQuestion(fullText),
+    summary: buildSummary(fullText || complaintText),
+    department: detectDepartment(fullText),
+    severity: detectSeverity(fullText),
+    sentiment: detectSentiment(fullText),
+    initialStatus: 'pending',
+    fingerprint: 'GEN-' + Date.now()
+  };
+};
+
+const normalizeAIResult = (resultText: string | undefined, complaintText: string, history: ChatMessage[]) => {
+  const fallback = buildFallbackAnalysis(complaintText, history);
+  if (!resultText) return fallback;
+
+  try {
+    const parsed = JSON.parse(resultText);
+    return {
+      isDetailedEnough: typeof parsed.isDetailedEnough === 'boolean' ? parsed.isDetailedEnough : fallback.isDetailedEnough,
+      followUpQuestion: parsed.followUpQuestion || fallback.followUpQuestion,
+      summary: parsed.summary || fallback.summary,
+      department: parsed.department || fallback.department,
+      severity: parsed.severity || fallback.severity,
+      sentiment: parsed.sentiment || fallback.sentiment,
+      initialStatus: parsed.initialStatus || fallback.initialStatus,
+      fingerprint: parsed.fingerprint || fallback.fingerprint,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
 export const analyzeGrievanceState = async (complaintText: string, history: ChatMessage[]) => {
   try {
     const ai = getAI();
@@ -52,20 +157,10 @@ export const analyzeGrievanceState = async (complaintText: string, history: Chat
       }
     });
 
-    return JSON.parse(result.text || "{}");
+    return normalizeAIResult(result.text, complaintText, history);
   } catch (error) {
     console.error('AI Error:', error);
-    // Fallback logic if AI fails
-    return {
-      isDetailedEnough: false,
-      followUpQuestion: 'Please describe the issue with the location, department, and what exactly happened.',
-      summary: complaintText.slice(0, 50),
-      department: 'Other',
-      severity: 'Medium',
-      sentiment: 'Neutral',
-      initialStatus: 'pending',
-      fingerprint: 'GEN-' + Date.now()
-    };
+    return buildFallbackAnalysis(complaintText, history);
   }
 };
 

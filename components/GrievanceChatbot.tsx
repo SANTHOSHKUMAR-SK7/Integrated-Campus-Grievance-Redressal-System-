@@ -102,13 +102,18 @@ const GrievanceChatbot: React.FC = () => {
           );
         }
       } else if (state === 'REVIEW') {
-        if (/confirm|yes|correct|ok|submit/i.test(userMessage)) {
+        if (/confirm|confirmed|yes|correct|ok|submit|proceed|continue|finalize/i.test(userMessage)) {
           await finalizeGrievance();
         } else {
           addBotMessage("Re-analyzing session context...");
           const updatedResult = await analyzeGrievanceState(userMessage, chatHistory);
           setAnalysis(updatedResult);
-          addBotMessage(`Revised Summary: ${updatedResult.summary}\n\nProceed?`);
+          addBotMessage(
+            `Revised Summary: ${updatedResult.summary}\n\n` +
+            `Department: ${updatedResult.department}\n` +
+            `Severity: ${String(updatedResult.severity || '').toUpperCase()}\n\n` +
+            `Type 'Confirm' to finalize filing.`
+          );
         }
       }
     } catch (e) {
