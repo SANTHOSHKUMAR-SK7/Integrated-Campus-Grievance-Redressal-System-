@@ -189,6 +189,14 @@ const canManageGrievance = (user: any, grievance: any) => {
   return false;
 };
 
+const canMessageOnGrievance = (user: any, grievance: any) => {
+  if (!user || !grievance) return false;
+  if (user.role === 'Student') {
+    return grievance.studentId === user.id;
+  }
+  return canManageGrievance(user, grievance);
+};
+
 // --- API Routes ---
 
 // Auth
@@ -332,24 +340,67 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
         const user = await User.findOne({ id: req.user.id });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
+        if (!canMessageOnGrievance(req.user, grievance)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        const content = String(req.body.content || '').trim();
+        if (!content) {
+            return res.status(400).json({ message: 'Message content is required' });
+        }
+
+        const messageType = req.body.type || 'student-staff';
+        if (!['student-staff', 'staff-staff'].includes(messageType)) {
+            return res.status(400).json({ message: 'Invalid message type' });
+        }
+
+        if (messageType === 'staff-staff' && !['Staff', 'Admin'].includes(user.role)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        let recipientId = req.body.recipientId;
+        let recipientName = req.body.recipientName;
+
+        if (recipientId) {
+            const recipient = await User.findOne({ id: recipientId }).select('-password');
+            if (!recipient) {
+                return res.status(404).json({ message: 'Recipient not found' });
+            }
+
+            if (messageType === 'staff-staff') {
+                if (!['Staff', 'Admin'].includes(recipient.role)) {
+                    return res.status(400).json({ message: 'Recipient must be staff or admin' });
+                }
+            } else {
+                const isStudentOwner = recipient.id === grievance.studentId;
+                const isCurrentHandler = recipient.id === grievance.assignedToId;
+                if (!isStudentOwner && !isCurrentHandler && recipient.role !== 'Admin') {
+                    return res.status(400).json({ message: 'Recipient is not part of this grievance' });
+                }
+            }
+
+            recipientId = recipient.id;
+            recipientName = recipient.name;
+        }
+
         const newMessage = {
             id: 'MSG-' + Math.random().toString(36).substr(2, 9),
             senderId: user.id,
             senderRole: user.role,
             senderName: user.name,
-            content: req.body.content,
+            content,
             timestamp: Date.now(),
-            type: req.body.type || 'student-staff',
-            recipientId: req.body.recipientId,
-            recipientName: req.body.recipientName
+            type: messageType,
+            recipientId,
+            recipientName
         };
 
         grievance.conversation.push(newMessage);
         await grievance.save();
 
         // Notify recipient if specified
-        if (req.body.recipientId) {
-            createNotification(req.body.recipientId, 'New Message Received', `You have a new message from ${user.name} regarding grievance #${grievance.id}`, 'message', `/grievances/${grievance.id}`);
+        if (recipientId) {
+            createNotification(recipientId, 'New Message Received', `You have a new message from ${user.name} regarding grievance #${grievance.id}`, 'message', `/grievances/${grievance.id}`);
         }
 
         res.json(grievance);
@@ -363,6 +414,15 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
     const { status, remark } = req.body;
     const grievance = await Grievance.findOne({ id: req.params.id });
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    if (!canManageGrievance(req.user, grievance)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const allowedStatuses = ['pending', 'in-progress', 'resolved', 'closed'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid grievance status' });
+    }
 
     grievance.status = status;
     grievance.lastStatusChange = Date.now();
@@ -636,10 +696,7 @@ async function seed() {
       }).save();
       console.log('Admin user seeded successfully');
     } else {
-      // Ensure password is 'password' for the demo
-      adminUser.password = hashedPassword;
-      await adminUser.save();
-      console.log('Admin password reset to "password" for email:', adminEmail);
+      console.log('Admin user already exists. Keeping existing password.');
     }
 
     const count = await User.countDocuments();
