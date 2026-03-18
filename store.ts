@@ -30,24 +30,28 @@ export const isAuthenticated = (): boolean => {
   return !!localStorage.getItem('access_token');
 };
 
-export const login = async (email: string, password: string): Promise<boolean> => {
+export const clearSession = () => {
+  currentUser = null;
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user_profile');
+};
+
+export const login = async (email: string, password: string): Promise<User | null> => {
   try {
     const response = await endpoints.auth.login({ email, password });
     if (response.data.token) {
       setSession(response.data.user, response.data.token);
-      return true;
+      return response.data.user;
     }
-    return false;
+    return null;
   } catch (error) {
     console.error('Login failed:', error);
-    return false;
+    return null;
   }
 };
 
 export const logout = () => {
-  currentUser = null;
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('user_profile');
+  clearSession();
   window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
   window.location.href = '/#/login';
 };

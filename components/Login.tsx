@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { login } from '../store';
+import { clearSession, login } from '../store';
+import { UserRole } from '../types';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -13,14 +14,35 @@ const Login: React.FC = () => {
   
   const roleName = location.state?.role || 'Institutional Portal';
 
+  const getExpectedRole = (): UserRole | null => {
+    switch (roleName) {
+      case 'Student Login':
+        return UserRole.STUDENT;
+      case 'Staff Login':
+        return UserRole.STAFF;
+      case 'Executive Authority':
+        return UserRole.ADMIN;
+      default:
+        return null;
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const success = await login(email, password);
-      if (success) {
+      const user = await login(email, password);
+      const expectedRole = getExpectedRole();
+
+      if (user && expectedRole && user.role !== expectedRole) {
+        clearSession();
+        setError(`This portal is for ${expectedRole.toLowerCase()} accounts only.`);
+        return;
+      }
+
+      if (user) {
         // We use navigate because store.ts already broadcasted the session update
         navigate('/dashboard');
       } else {
