@@ -165,6 +165,13 @@ async function createNotification(userId: string, title: string, message: string
   }
 }
 
+async function buildGrievanceLinkForUser(userId: string, grievanceId: string) {
+  const user = await User.findOne({ id: userId }).select('role');
+  if (!user) return undefined;
+  const basePath = user.role === 'Student' ? '/track' : '/manage';
+  return `${basePath}?grievanceId=${encodeURIComponent(grievanceId)}`;
+}
+
 // --- Auth Middleware ---
 
 const authenticate = (req: any, res: any, next: any) => {
@@ -334,7 +341,8 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     try {
       const staff = await User.findOne({ role: 'Staff', department: grievance.department });
       if (staff) {
-        createNotification(staff.id, 'New Grievance Filed', `A new grievance #${grievance.id} has been filed in your department: ${grievance.title}`, 'system', `/grievances/${grievance.id}`);
+        const grievanceLink = await buildGrievanceLinkForUser(staff.id, grievance.id);
+        createNotification(staff.id, 'New Grievance Filed', `A new grievance #${grievance.id} has been filed in your department: ${grievance.title}`, 'system', grievanceLink);
       }
     } catch (notifErr) {
       console.error('Failed to send notification for new grievance:', notifErr);
@@ -444,7 +452,8 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
 
         // Notify recipient if specified
         if (recipientId) {
-            createNotification(recipientId, 'New Message Received', `You have a new message from ${user.name} regarding grievance #${grievance.id}`, 'message', `/grievances/${grievance.id}`);
+            const grievanceLink = await buildGrievanceLinkForUser(recipientId, grievance.id);
+            createNotification(recipientId, 'New Message Received', `You have a new message from ${user.name} regarding grievance #${grievance.id}`, 'message', grievanceLink);
         }
 
         res.json(grievance);
@@ -482,12 +491,13 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
     // Notify student
     const student = await User.findOne({ id: grievance.studentId });
     if (student) {
+      const grievanceLink = await buildGrievanceLinkForUser(student.id, grievance.id);
       createNotification(
         student.id, 
         'Grievance Status Updated', 
         `Your grievance #${grievance.id} status is now: ${status}`, 
         'status_change', 
-        `/grievances/${grievance.id}`
+        grievanceLink
       );
     }
 
