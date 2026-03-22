@@ -35,7 +35,7 @@ const ManagementConsole: React.FC = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const refreshGrievance = async () => {
-    const id = location.state?.grievanceId;
+    const id = location.state?.grievanceId || new URLSearchParams(location.search).get('grievanceId');
     if (id) {
       const all = await getGrievances();
       const g = all.find(x => x.id === id);

@@ -20,6 +20,13 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getFallbackRoute = (notification: Notification) => {
+    if (notification.type === 'message' || notification.type === 'status_change') {
+      return '/track';
+    }
+    return '/dashboard';
+  };
+
   const fetchNotifications = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -129,11 +136,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 onClick={() => {
                   if (!notification.isRead) markAsRead(notification.id);
                   onClose();
-                  if (notification.type === 'message' || notification.type === 'status_change') {
-                    navigate('/track');
-                  } else if (notification.link) {
-                    navigate(notification.link);
-                  }
+                  navigate(notification.link || getFallbackRoute(notification));
                 }}
               >
                 <div className="flex gap-3">
