@@ -531,6 +531,34 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
+app.get('/api/admin/runtime-config', authenticate, async (req: any, res) => {
+  try {
+    if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
+
+    res.json({
+      database: {
+        status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        source: process.env.MONGODB_URI ? 'environment' : 'default-local',
+      },
+      authentication: {
+        jwtConfigured: Boolean(process.env.JWT_SECRET),
+      },
+      email: {
+        configured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+      },
+      ai: {
+        configured: Boolean(process.env.GEMINI_API_KEY),
+      },
+      notes: [
+        'Runtime infrastructure is controlled by server environment variables.',
+        'Browser settings do not change the deployed backend configuration.'
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.patch('/api/notifications/:id/read', authenticate, async (req: any, res) => {
   try {
     await Notification.updateOne({ id: req.params.id, userId: req.user.id }, { isRead: true });
