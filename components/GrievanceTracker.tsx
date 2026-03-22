@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getGrievances, getCurrentUser, sendMessage } from '../store';
 import { Grievance, Status, Department, ChatType } from '../types';
 import { ICONS, COLORS } from '../constants';
@@ -9,6 +9,7 @@ import Timeline from './Timeline';
 const GrievanceTracker: React.FC = () => {
   const user = getCurrentUser();
   const navigate = useNavigate();
+  const location = useLocation();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -31,6 +32,17 @@ const GrievanceTracker: React.FC = () => {
     const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
   }, [selectedGrievance?.id]);
+
+  useEffect(() => {
+    const grievanceId = location.state?.grievanceId || new URLSearchParams(location.search).get('grievanceId');
+    if (!grievanceId || grievances.length === 0) return;
+
+    const grievanceFromState = grievances.find((g) => g.id === grievanceId);
+    if (grievanceFromState) {
+      setSelectedGrievance(grievanceFromState);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [grievances, location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
