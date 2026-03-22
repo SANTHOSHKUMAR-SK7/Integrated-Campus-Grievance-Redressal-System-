@@ -37,10 +37,10 @@ const Dashboard: React.FC = () => {
     return (
       <div className="space-y-8 animate-in fade-in duration-700">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard label="Total Filed" value={stats.total} subtext="Institutional record" icon="📋" />
-          <StatCard label="Pending" value={stats.pending} subtext="Awaiting review" icon="⏳" color="text-amber-500" />
-          <StatCard label="In Progress" value={stats.progress} subtext="Staff handling" icon="🚧" color="text-indigo-600" />
-          <StatCard label="Resolved" value={stats.resolved} subtext="Verified closed" icon="✅" color="text-emerald-600" />
+          <StatCard label="Total Filed" value={stats.total} subtext="Institutional record" icon="Filed" />
+          <StatCard label="Pending" value={stats.pending} subtext="Awaiting review" icon="Queue" color="text-amber-500" />
+          <StatCard label="In Progress" value={stats.progress} subtext="Staff handling" icon="Active" color="text-indigo-600" />
+          <StatCard label="Resolved" value={stats.resolved} subtext="Verified closed" icon="Done" color="text-emerald-600" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
             onClick={() => navigate('/track')}
           />
         </div>
-        
+
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center">
             <h3 className="font-black text-slate-900 tracking-tight">Recent Activity</h3>
@@ -84,9 +84,9 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{g.id}</span>
-                  <span>•</span>
+                  <span>&middot;</span>
                   <span className="text-indigo-600">{g.department}</span>
-                  <span>•</span>
+                  <span>&middot;</span>
                   <span className="flex items-center gap-1">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -120,16 +120,16 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard label="Assigned" value={worklist.length} subtext="Active cases" icon="📂" />
+        <StatCard label="Assigned" value={worklist.length} subtext="Active cases" icon="Case" />
         <StatCard
           label="Unread"
           value={worklist.filter((g) => g.conversation && g.conversation.length > 0 && g.conversation[g.conversation.length - 1].senderRole === UserRole.STUDENT).length}
           subtext="Student messages"
-          icon="💬"
+          icon="Inbox"
           color="text-indigo-600"
         />
-        <StatCard label="Urgent" value={worklist.filter((g) => g.sentiment === 'Angry' || g.sentiment === 'Urgent').length} subtext="Critical sentiment" icon="🔥" color="text-red-600" />
-        <StatCard label="Resolved" value={worklist.filter((g) => g.status === Status.RESOLVED).length} subtext="Case success" icon="✅" color="text-emerald-600" />
+        <StatCard label="Urgent" value={worklist.filter((g) => g.sentiment === 'Angry' || g.sentiment === 'Urgent').length} subtext="Critical sentiment" icon="Alert" color="text-red-600" />
+        <StatCard label="Resolved" value={worklist.filter((g) => g.status === Status.RESOLVED).length} subtext="Case success" icon="Done" color="text-emerald-600" />
       </div>
 
       <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden">
@@ -194,7 +194,7 @@ const StatCard = ({ label, value, subtext, icon, color = 'text-slate-900' }) => 
   <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm font-semibold text-slate-600 tracking-tight">{label}</p>
-      <span className="text-lg leading-none" aria-hidden="true">
+      <span className="text-[11px] font-black uppercase tracking-widest text-slate-400" aria-hidden="true">
         {icon}
       </span>
     </div>

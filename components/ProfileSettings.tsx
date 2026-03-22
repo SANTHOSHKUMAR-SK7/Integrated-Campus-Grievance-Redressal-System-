@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { getCurrentUser } from '../store';
 
@@ -104,43 +103,43 @@ const ProfileSettings: React.FC = () => {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Current Password</label>
-                <input 
+                <input
                   type="password"
                   required
                   value={passwords.current}
                   onChange={e => setPasswords({...passwords, current: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  placeholder="••••••••"
+                  placeholder="Enter current password"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">New Password</label>
-                  <input 
+                  <input
                     type="password"
                     required
                     value={passwords.new}
                     onChange={e => setPasswords({...passwords, new: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                    placeholder="••••••••"
+                    placeholder="Enter new password"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Confirm New Password</label>
-                  <input 
+                  <input
                     type="password"
                     required
                     value={passwords.confirm}
                     onChange={e => setPasswords({...passwords, confirm: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                    placeholder="••••••••"
+                    placeholder="Confirm new password"
                   />
                 </div>
               </div>
 
               <div className="pt-4">
-                <button 
+                <button
                   type="submit"
                   disabled={isSubmitting}
                   className="w-full md:w-auto px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"

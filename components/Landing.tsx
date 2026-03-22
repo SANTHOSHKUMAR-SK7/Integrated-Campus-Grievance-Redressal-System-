@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,15 +8,15 @@ const Landing: React.FC = () => {
     <div className="min-h-screen bg-white flex flex-col">
       <header className="px-12 py-8 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <img 
-            src="/dait-logo.png" 
-            alt="DAIT Institutional Logo" 
-            className="h-16 w-auto" 
+          <img
+            src="/dait-logo.png"
+            alt="DAIT Institutional Logo"
+            className="h-16 w-auto"
           />
           <div className="h-10 w-[1px] bg-slate-200"></div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight">DAIT Institutional Redressal</h1>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/login')}
           className="px-8 py-3 bg-slate-950 text-white font-black text-xs rounded-xl uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"
         >
@@ -46,13 +45,13 @@ const Landing: React.FC = () => {
           ].map((card, i) => (
             <div key={i} className="bg-white p-12 rounded-[40px] border border-slate-200 shadow-sm hover:shadow-2xl hover:border-indigo-100 transition-all text-center space-y-10 flex flex-col items-center group">
               <div className={`w-20 h-20 rounded-3xl flex items-center justify-center ${card.color} shadow-lg transition-transform group-hover:scale-110`}>
-                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d={card.icon} /></svg>
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d={card.icon} /></svg>
               </div>
               <div className="space-y-3">
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">{card.role}</h3>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed">{card.desc}</p>
               </div>
-              <button 
+              <button
                 onClick={() => navigate('/login', { state: { role: card.role } })}
                 className="w-full py-5 bg-slate-50 text-slate-900 font-black rounded-2xl border border-slate-100 hover:bg-slate-900 hover:text-white transition-all uppercase tracking-widest text-[10px]"
               >
@@ -64,13 +63,13 @@ const Landing: React.FC = () => {
       </main>
 
       <footer className="bg-slate-950 py-16 px-12 border-t border-slate-900">
-         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-           <div className="flex items-center gap-6 grayscale opacity-50">
-             <img src="/dait-logo.png" alt="Logo" className="h-10 w-auto" />
-             <p className="text-slate-500 text-sm font-bold tracking-tight">Dhaanish Ahmed Institute of Technology</p>
-           </div>
-           <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">© 2026 Institutional Operations | DAIT Academic Oversight</p>
-         </div>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-6 grayscale opacity-50">
+            <img src="/dait-logo.png" alt="Logo" className="h-10 w-auto" />
+            <p className="text-slate-500 text-sm font-bold tracking-tight">Dhaanish Ahmed Institute of Technology</p>
+          </div>
+          <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]">Copyright 2026 Institutional Operations | DAIT Academic Oversight</p>
+        </div>
       </footer>
     </div>
   );
