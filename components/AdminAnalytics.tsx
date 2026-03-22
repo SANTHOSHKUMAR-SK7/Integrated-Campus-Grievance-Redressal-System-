@@ -1,12 +1,15 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { getGrievances } from '../store';
 import { Grievance, Severity, Department, Status } from '../types';
+import { COLORS } from '../constants';
 
 const AdminAnalytics: React.FC = () => {
   const [data, setData] = useState<Grievance[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getGrievances().then(res => {
@@ -111,18 +114,23 @@ const AdminAnalytics: React.FC = () => {
                </tr>
              </thead>
              <tbody className="divide-y divide-slate-100">
-               {data.slice(0, 5).map(g => (
-                 <tr key={g.id} className="text-[13px] hover:bg-slate-50/50 transition-colors">
-                    <td className="px-8 py-5 font-bold text-slate-900">{g.id}</td>
-                    <td className="px-8 py-5 text-slate-600 font-medium max-w-xs truncate">{g.title || g.description}</td>
-                    <td className="px-8 py-5"><span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold text-[10px]">{g.department}</span></td>
-                    <td className="px-8 py-5"><span className="px-2 py-0.5 border border-orange-200 bg-orange-50 text-orange-700 rounded font-bold uppercase text-[10px]">{g.severity}</span></td>
-                    <td className="px-8 py-5"><span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md font-bold uppercase text-[10px] tracking-tighter">Submitted</span></td>
-                    <td className="px-8 py-5">
-                       <button className="text-indigo-600 hover:underline font-bold">View</button>
-                    </td>
-                 </tr>
-               ))}
+                {data.slice(0, 5).map(g => (
+                  <tr key={g.id} className="text-[13px] hover:bg-slate-50/50 transition-colors">
+                     <td className="px-8 py-5 font-bold text-slate-900">{g.id}</td>
+                     <td className="px-8 py-5 text-slate-600 font-medium max-w-xs truncate">{g.title || g.description}</td>
+                     <td className="px-8 py-5"><span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md font-bold text-[10px]">{g.department}</span></td>
+                     <td className="px-8 py-5"><span className="px-2 py-0.5 border border-orange-200 bg-orange-50 text-orange-700 rounded font-bold uppercase text-[10px]">{g.severity}</span></td>
+                     <td className="px-8 py-5"><span className={COLORS.status[g.status]}>{g.status}</span></td>
+                     <td className="px-8 py-5">
+                       <button
+                         onClick={() => navigate(`/manage?grievanceId=${encodeURIComponent(g.id)}`)}
+                         className="text-indigo-600 hover:underline font-bold"
+                       >
+                         View
+                       </button>
+                     </td>
+                  </tr>
+                ))}
              </tbody>
           </table>
         </div>

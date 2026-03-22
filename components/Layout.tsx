@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentUser, logout, subscribeToSession } from '../store';
 import { UserRole } from '../types';
@@ -13,6 +13,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setUser] = useState(getCurrentUser());
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   const fetchUnreadCount = async () => {
     const token = localStorage.getItem('access_token');
@@ -59,6 +60,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     
     return cleanup;
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!notificationRef.current?.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -144,7 +158,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{currentUser.role} Level Authority</p>
           </div>
           <div className="flex items-center gap-10">
-            <div className="relative">
+            <div className="relative" ref={notificationRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`relative p-3 transition-all rounded-2xl border shadow-sm ${
