@@ -17,6 +17,7 @@ const GrievanceTracker: React.FC = () => {
   const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
   const [showFilingOptions, setShowFilingOptions] = useState(false);
   const [chatInput, setChatInput] = useState('');
+  const [chatError, setChatError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const refreshData = async () => {
@@ -62,10 +63,13 @@ const GrievanceTracker: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !selectedGrievance) return;
-    const res = await sendMessage(selectedGrievance.id, chatInput);
-    if (res) {
+    try {
+      const res = await sendMessage(selectedGrievance.id, chatInput);
       setChatInput('');
+      setChatError('');
       setSelectedGrievance(res);
+    } catch (error: any) {
+      setChatError(error?.message || 'Unable to send your message right now.');
     }
   };
 
@@ -235,12 +239,18 @@ const GrievanceTracker: React.FC = () => {
                 <input
                   type="text"
                   value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
+                  onChange={e => {
+                    setChatInput(e.target.value);
+                    if (chatError) setChatError('');
+                  }}
                   placeholder="Draft your message back to the staff member..."
                   className="flex-1 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl px-5 py-4 sm:px-7 sm:py-5 text-sm font-semibold focus:ring-2 focus:ring-indigo-600 outline-none w-full min-w-0"
                 />
                 <button type="submit" disabled={!chatInput.trim()} className="bg-slate-900 text-white px-6 py-4 sm:px-10 sm:py-5 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 disabled:opacity-30 transition-all shrink-0">Send</button>
               </form>
+              {chatError && (
+                <p className="mt-3 text-xs font-bold text-red-600">{chatError}</p>
+              )}
             </div>
           </div>
         </div>
