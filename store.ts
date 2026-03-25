@@ -89,7 +89,12 @@ export const saveGrievance = async (grievance: Partial<Grievance>) => {
 
 export const updateGrievance = async (grievance: Grievance) => {
   try {
-    const response = await endpoints.grievances.updateStatus(grievance.id, grievance.status, grievance.history[grievance.history.length - 1]?.remark || '');
+    const response = await endpoints.grievances.updateStatus(
+      grievance.id,
+      grievance.status,
+      grievance.history[grievance.history.length - 1]?.remark || '',
+      grievance.remarks || []
+    );
     // In a real app, we might want a more generic update endpoint, 
     // but for now we'll use what we have or just patch the whole object if we had that endpoint.
     // Let's assume updateStatus is enough for status changes, but for transfers we might need more.
@@ -103,7 +108,9 @@ export const updateGrievance = async (grievance: Grievance) => {
 export const sendMessage = async (grievanceId: string, content: string, type: ChatType = ChatType.STUDENT_STAFF, recipientId?: string) => {
   try {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      throw new Error('You must be signed in to send a message.');
+    }
 
     let recipientName = undefined;
     if (recipientId) {
@@ -120,10 +127,14 @@ export const sendMessage = async (grievanceId: string, content: string, type: Ch
         body: JSON.stringify({ content, type, recipientId, recipientName })
     });
     
-    if (!response.ok) throw new Error('Failed to send message');
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || 'Failed to send message');
+    }
     return await response.json();
   } catch (error) {
     console.error('Failed to send message:', error);
+    throw error;
   }
 };
 
