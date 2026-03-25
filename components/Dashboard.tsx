@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getGrievances, getCurrentUser, subscribeToSession } from '../store';
-import { UserRole, Status, Grievance } from '../types';
+import { UserRole, Status, Grievance, ChatType } from '../types';
 import { COLORS } from '../constants';
 
 const Dashboard: React.FC = () => {
@@ -96,7 +96,7 @@ const Dashboard: React.FC = () => {
                         d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                       />
                     </svg>
-                    {(g.conversation || []).length} Messages
+                    {(g.conversation || []).filter((message) => !message.type || message.type === ChatType.STUDENT_STAFF).length} Messages
                   </span>
                 </div>
               </div>
