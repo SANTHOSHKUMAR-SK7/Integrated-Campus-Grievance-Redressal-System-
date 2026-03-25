@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Department } from '../types';
-import { getAccessToken } from '../store';
+import { getAccessToken, getCurrentUser } from '../store';
 
 const UserManagement: React.FC = () => {
+  const currentUser = getCurrentUser();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -148,6 +149,10 @@ const UserManagement: React.FC = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (currentUser?.id === userId) {
+      alert('You cannot delete the currently signed-in admin account.');
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -233,9 +238,10 @@ const UserManagement: React.FC = () => {
                    </button>
                    <button 
                      onClick={() => handleDeleteUser(u.id)}
+                     disabled={currentUser?.id === u.id}
                      className="text-xs font-black text-rose-600 hover:bg-rose-50 px-4 py-2 rounded-lg transition-all"
                    >
-                     DELETE
+                     {currentUser?.id === u.id ? 'CURRENT ADMIN' : 'DELETE'}
                    </button>
                 </td>
               </tr>
