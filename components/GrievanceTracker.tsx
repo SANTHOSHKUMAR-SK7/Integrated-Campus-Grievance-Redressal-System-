@@ -15,6 +15,7 @@ const GrievanceTracker: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
+  const [showFilingOptions, setShowFilingOptions] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +79,7 @@ const GrievanceTracker: React.FC = () => {
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">Institutional Record</h2>
             <p className="text-sm font-medium text-slate-500 mt-1">Audit and interact with your personal grievance pipeline.</p>
           </div>
-          <button onClick={() => navigate('/chatbot')} className="flex items-center gap-3 bg-indigo-600 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
+          <button onClick={() => setShowFilingOptions(true)} className="flex items-center gap-3 bg-indigo-600 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">
             <ICONS.Raise />
             New Filing
           </button>
@@ -92,6 +93,7 @@ const GrievanceTracker: React.FC = () => {
                 <tr>
                   <th className="px-10 py-5">Case Reference</th>
                   <th className="px-10 py-5">Summary</th>
+                  <th className="px-10 py-5">Filing Mode</th>
                   <th className="px-10 py-5">Status</th>
                   <th className="px-10 py-5">Category</th>
                   <th className="px-10 py-5 text-right">Action</th>
@@ -102,6 +104,13 @@ const GrievanceTracker: React.FC = () => {
                   <tr key={g.id} className="hover:bg-slate-50 transition-all cursor-pointer group" onClick={() => setSelectedGrievance(g)}>
                     <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
                     <td className="px-10 py-6 text-sm font-bold text-slate-700">{g.summary || 'Awaiting Analysis'}</td>
+                    <td className="px-10 py-6">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest ${
+                        g.isAnonymous ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {g.isAnonymous ? 'Anonymous' : 'Profile Linked'}
+                      </span>
+                    </td>
                     <td className="px-10 py-6"><span className={COLORS.status[g.status]}>{g.status}</span></td>
                     <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.department}</span></td>
                     <td className="px-10 py-6 text-right">
@@ -115,6 +124,53 @@ const GrievanceTracker: React.FC = () => {
         </div>
       </div>
 
+      {showFilingOptions && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-[32px] border border-slate-200 bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Choose Filing Method</h3>
+                <p className="mt-2 text-sm font-medium text-slate-500">Start a new grievance using AI guidance or the manual complaint form.</p>
+              </div>
+              <button
+                onClick={() => setShowFilingOptions(false)}
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <button
+                onClick={() => {
+                  setShowFilingOptions(false);
+                  navigate('/chatbot');
+                }}
+                className="rounded-3xl border border-indigo-100 bg-indigo-50 p-6 text-left transition-all hover:border-indigo-200 hover:bg-indigo-100"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">AI Assisted</p>
+                <h4 className="mt-3 text-lg font-black text-slate-900">Filing Assistant</h4>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">Let the chatbot ask questions and prepare the complaint details with you.</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowFilingOptions(false);
+                  navigate('/manual-complaint');
+                }}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left transition-all hover:border-slate-300 hover:bg-slate-100"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Direct Entry</p>
+                <h4 className="mt-3 text-lg font-black text-slate-900">Manual Form</h4>
+                <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">Enter the complaint yourself in a structured form and submit it directly.</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* RESOLUTION HUB MODAL (Direct Chat) */}
       {selectedGrievance && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
@@ -127,6 +183,11 @@ const GrievanceTracker: React.FC = () => {
                   <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Case #{selectedGrievance.id}</h3>
                   <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Direct Messaging Channel</p>
                 </div>
+                <span className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest ${
+                  selectedGrievance.isAnonymous ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {selectedGrievance.isAnonymous ? 'Anonymous Filing' : 'Profile Linked Filing'}
+                </span>
               </div>
               <button onClick={() => setSelectedGrievance(null)} className="p-2 sm:p-3 bg-slate-50 sm:bg-transparent text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-full transition-colors">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>

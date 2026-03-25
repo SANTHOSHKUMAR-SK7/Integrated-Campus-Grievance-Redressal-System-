@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeGrievanceState } from '../services/geminiService';
 import { ChatMessage, Grievance, Status, Department, Severity } from '../types';
@@ -17,7 +16,7 @@ const GrievanceChatbot: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [attachment, setAttachment] = useState<any>(null);
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, isTyping]);
@@ -88,7 +87,7 @@ const GrievanceChatbot: React.FC = () => {
 
         if (!result.isDetailedEnough) {
           setState('COLLECTING');
-          addBotMessage(result.followUpQuestion || "Institutional protocols require more specific details. Please clarify the location and nature of the concern.");
+          addBotMessage(result.followUpQuestion || 'Institutional protocols require more specific details. Please clarify the location and nature of the concern.');
         } else {
           setState('REVIEW');
           addBotMessage(
@@ -105,7 +104,7 @@ const GrievanceChatbot: React.FC = () => {
         if (/confirm|confirmed|yes|correct|ok|submit|proceed|continue|finalize/i.test(userMessage)) {
           await finalizeGrievance();
         } else {
-          addBotMessage("Re-analyzing session context...");
+          addBotMessage('Re-analyzing session context...');
           const updatedResult = await analyzeGrievanceState(userMessage, chatHistory);
           setAnalysis(updatedResult);
           addBotMessage(
@@ -117,7 +116,14 @@ const GrievanceChatbot: React.FC = () => {
         }
       }
     } catch (e) {
-      addBotMessage("Infrastructure error: AI gateway timeout.");
+      const errorMessage = e instanceof Error ? e.message : '';
+      if (/AI service is not configured|Gemini API key/i.test(errorMessage)) {
+        addBotMessage('AI assistant is not configured right now. Please set the Gemini API key and restart the server.');
+      } else if (/Request failed with status code|Failed to save grievance|Network Error/i.test(errorMessage)) {
+        addBotMessage('Unable to submit the grievance right now. Please try again in a moment.');
+      } else {
+        addBotMessage('Unable to continue this filing right now. Please try again.');
+      }
     } finally {
       setIsTyping(false);
     }
@@ -132,7 +138,7 @@ const GrievanceChatbot: React.FC = () => {
 
     const newGrievance: Grievance = {
       id: grievanceId,
-      title: analysis?.summary || "General Concern",
+      title: analysis?.summary || 'General Concern',
       timestamp: now,
       description: messages.filter(m => m.role === 'user').map(m => m.content).join('\n'),
       department: dept,
@@ -140,7 +146,7 @@ const GrievanceChatbot: React.FC = () => {
       status: initialStatus,
       isAnonymous: isAnonymous,
       studentId: currentUser?.id || 'ANON',
-      assignedToId: staffId, 
+      assignedToId: staffId,
       lastStatusChange: now,
       history: [{ status: initialStatus, timestamp: now, userId: 'SYSTEM', remark: `Case registered with initial status: ${initialStatus}` }],
       remarks: [],
@@ -152,7 +158,7 @@ const GrievanceChatbot: React.FC = () => {
     };
 
     await saveGrievance(newGrievance);
-    addBotMessage(`✅ **Verified.** Ref: **#${grievanceId}**.\n\nRouted to **${dept}**. ${isAnonymous ? "Filing is Anonymous." : "Filing linked to profile."}`);
+    addBotMessage(`Success. **Verified.** Ref: **#${grievanceId}**.\n\nRouted to **${dept}**. ${isAnonymous ? 'Filing is Anonymous.' : 'Filing linked to profile.'}`);
     setState('DONE');
   };
 
@@ -203,9 +209,9 @@ const GrievanceChatbot: React.FC = () => {
           <label className="flex items-center gap-3 cursor-pointer group">
             <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">Anonymous Filing</span>
             <div className="relative">
-              <input 
-                type="checkbox" 
-                checked={isAnonymous} 
+              <input
+                type="checkbox"
+                checked={isAnonymous}
                 onChange={() => setIsAnonymous(!isAnonymous)}
                 className="w-5 h-5 accent-indigo-400 cursor-pointer"
               />
@@ -218,8 +224,8 @@ const GrievanceChatbot: React.FC = () => {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] px-7 py-4 rounded-[24px] text-sm font-semibold shadow-sm border ${
-              msg.role === 'user' 
-                ? 'bg-indigo-600 text-white border-indigo-500 rounded-tr-none' 
+              msg.role === 'user'
+                ? 'bg-indigo-600 text-white border-indigo-500 rounded-tr-none'
                 : 'bg-white text-slate-700 border-slate-200 rounded-tl-none'
             }`}>
               {msg.content}
@@ -260,13 +266,13 @@ const GrievanceChatbot: React.FC = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={state === 'DONE' ? "Filing session complete." : "Describe the institutional concern..."}
+              placeholder={state === 'DONE' ? 'Filing session complete.' : 'Describe the institutional concern...'}
               disabled={state === 'DONE' || isTyping}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-7 py-5 text-sm font-semibold focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all"
             />
-            <button 
-              type="submit" 
-              disabled={!input.trim() || isTyping || state === 'DONE'} 
+            <button
+              type="submit"
+              disabled={!input.trim() || isTyping || state === 'DONE'}
               className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 active:scale-95 transition-all shadow-xl shadow-slate-200 disabled:opacity-30"
             >
               Submit

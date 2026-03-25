@@ -110,8 +110,7 @@ const ManualGrievanceForm: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Complaint Title</label>
@@ -197,42 +196,9 @@ const ManualGrievanceForm: React.FC = () => {
               {isSubmitting ? 'Submitting...' : 'Submit Complaint'}
             </button>
           </div>
-        </form>
-
-        <div className="space-y-6">
-          <div className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-600">What Happens Next</p>
-            <div className="mt-6 space-y-5">
-              <Step title="1. Complaint Registered" text="Your complaint is saved directly into the grievance system." />
-              <Step title="2. Priority Computed" text="Severity is assigned in code from the complaint details, not by the student." />
-              <Step title="3. Staff Assigned" text="The system routes the case to the responsible department automatically." />
-            </div>
-          </div>
-
-          <div className="rounded-[32px] border border-slate-200 bg-gradient-to-br from-indigo-950 via-indigo-800 to-indigo-700 p-8 text-white shadow-xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">Best Results</p>
-            <ul className="mt-5 space-y-3 text-sm font-medium leading-relaxed text-indigo-50">
-              <li>Include the exact location like room number, block, floor, or office.</li>
-              <li>Mention when the issue started and whether it is recurring.</li>
-              <li>Attach an image if the issue is visible and safe to photograph.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      </form>
     </div>
   );
 };
-
-const Step = ({ title, text }: { title: string; text: string }) => (
-  <div className="flex gap-4">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-[11px] font-black text-indigo-600">
-      {title.split('.')[0]}
-    </div>
-    <div>
-      <p className="text-sm font-black text-slate-900">{title}</p>
-      <p className="mt-1 text-sm font-medium leading-relaxed text-slate-500">{text}</p>
-    </div>
-  </div>
-);
 
 export default ManualGrievanceForm;
