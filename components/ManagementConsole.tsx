@@ -18,6 +18,7 @@ const ManagementConsole: React.FC = () => {
   const [assignedStaff, setAssignedStaff] = useState<User | null>(null);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const [chatError, setChatError] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string, actionPoints: string[], toneRecommendation: string } | null>(null);
@@ -58,7 +59,7 @@ const ManagementConsole: React.FC = () => {
     getAllStaff().then(setStaffList);
     const interval = setInterval(refreshGrievance, 5000);
     return () => clearInterval(interval);
-  }, [location.state]);
+  }, [location.pathname, location.search, location.state]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,10 +81,13 @@ const ManagementConsole: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !grievance) return;
-    const res = await sendMessage(grievance.id, chatInput, activeChatTab, activeChatTab === ChatType.STAFF_STAFF ? selectedRecipientId : undefined);
-    if (res) {
+    try {
+      const res = await sendMessage(grievance.id, chatInput, activeChatTab, activeChatTab === ChatType.STAFF_STAFF ? selectedRecipientId : undefined);
       setGrievance(res);
       setChatInput('');
+      setChatError('');
+    } catch (error: any) {
+      setChatError(error?.message || 'Unable to send the message right now.');
     }
   };
 
@@ -408,7 +412,10 @@ const ManagementConsole: React.FC = () => {
             <input
               type="text"
               value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
+              onChange={e => {
+                setChatInput(e.target.value);
+                if (chatError) setChatError('');
+              }}
               placeholder={activeChatTab === ChatType.STUDENT_STAFF ? "Draft message to student..." : "Internal note for other staff..."}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-7 py-5 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
             />
@@ -420,6 +427,9 @@ const ManagementConsole: React.FC = () => {
               {activeChatTab === ChatType.STUDENT_STAFF ? 'Dispatch' : 'Post Note'}
             </button>
           </form>
+          {chatError && (
+            <p className="mt-3 text-xs font-bold text-red-600">{chatError}</p>
+          )}
         </div>
       </div>
 

@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, CheckCircle, MessageSquare, AlertCircle, X, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { getAccessToken } from '../store';
+import { getAccessToken, getCurrentUser } from '../store';
+import { UserRole } from '../types';
 
 interface Notification {
   id: string;
@@ -18,12 +19,13 @@ interface Notification {
 
 const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getFallbackRoute = (notification: Notification) => {
     if (notification.type === 'message' || notification.type === 'status_change') {
-      return '/track';
+      return currentUser?.role === UserRole.STUDENT ? '/track' : '/manage';
     }
     return '/dashboard';
   };
@@ -166,7 +168,13 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       </div>
 
       <div className="p-3 bg-slate-50 text-center border-top border-slate-100">
-        <button className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors">
+        <button
+          onClick={() => {
+            onClose();
+            navigate(currentUser?.role === UserRole.STUDENT ? '/track' : '/dashboard');
+          }}
+          className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
+        >
           View all activity
         </button>
       </div>
