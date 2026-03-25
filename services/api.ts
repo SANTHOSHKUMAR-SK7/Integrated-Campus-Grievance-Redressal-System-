@@ -32,8 +32,8 @@ export const endpoints = {
     getAll: () => api.get('/grievances'),
     getById: (id: string) => api.get(`/grievances/${id}`),
     submit: (data: any) => api.post('/grievances', data),
-    updateStatus: (id: string, status: string, remark: string) => 
-      api.patch(`/grievances/${id}/status`, { status, remark }),
+    updateStatus: (id: string, status: string, remark: string, remarks?: string[]) => 
+      api.patch(`/grievances/${id}/status`, { status, remark, remarks }),
   },
   admin: {
     getStats: () => api.get('/admin/analytics'),
