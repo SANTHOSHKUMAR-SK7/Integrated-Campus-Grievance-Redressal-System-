@@ -464,7 +464,7 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
 
 app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any) => {
   try {
-    const { status, remark } = req.body;
+    const { status, remark, remarks } = req.body;
     const grievance = await Grievance.findOne({ id: req.params.id });
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
 
@@ -485,6 +485,10 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
       userId: req.user.id,
       remark: remark || `Status updated to ${status}`
     });
+
+    if (Array.isArray(remarks)) {
+      grievance.remarks = remarks.filter((entry: unknown) => typeof entry === 'string');
+    }
 
     await grievance.save();
 
@@ -710,6 +714,9 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
 app.delete('/api/users/:id', authenticate, async (req: any, res) => {
   try {
     if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
+    if (req.user.id === req.params.id) {
+      return res.status(400).json({ message: 'You cannot delete the currently signed-in admin account' });
+    }
     const result = await User.deleteOne({ id: req.params.id });
     if (result.deletedCount === 0) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'User deleted successfully' });
