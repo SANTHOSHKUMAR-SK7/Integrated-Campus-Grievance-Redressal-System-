@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, CheckCircle, MessageSquare, AlertCircle, X, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { getAccessToken } from '../store';
 
 interface Notification {
   id: string;
@@ -28,7 +29,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const fetchNotifications = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getAccessToken();
     if (!token) {
       setIsLoading(false);
       return;
@@ -60,7 +61,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       await fetch(`/api/notifications/${id}/read`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         }
       });
       setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -74,7 +75,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       await fetch('/api/notifications/read-all', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         }
       });
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));

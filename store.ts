@@ -4,17 +4,21 @@ import { endpoints } from './services/api';
 
 let currentUser: User | null = null;
 const SESSION_CHANGE_EVENT = 'DAIT_session_change';
+const ACCESS_TOKEN_KEY = 'access_token';
+const USER_PROFILE_KEY = 'user_profile';
+
+export const getAccessToken = (): string | null => sessionStorage.getItem(ACCESS_TOKEN_KEY);
 
 export const setSession = (user: User, token: string) => {
   currentUser = user;
-  localStorage.setItem('access_token', token);
-  localStorage.setItem('user_profile', JSON.stringify(user));
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+  sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(user));
   window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
 };
 
 export const getCurrentUser = (): User | null => {
   if (currentUser) return currentUser;
-  const saved = localStorage.getItem('user_profile');
+  const saved = sessionStorage.getItem(USER_PROFILE_KEY);
   if (saved) {
     try {
       currentUser = JSON.parse(saved);
@@ -27,13 +31,13 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('access_token');
+  return !!getAccessToken();
 };
 
 export const clearSession = () => {
   currentUser = null;
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('user_profile');
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem(USER_PROFILE_KEY);
 };
 
 export const login = async (email: string, password: string): Promise<User | null> => {
@@ -58,10 +62,8 @@ export const logout = () => {
 
 export const subscribeToSession = (callback: () => void) => {
   window.addEventListener(SESSION_CHANGE_EVENT, callback);
-  window.addEventListener('storage', callback);
   return () => {
     window.removeEventListener(SESSION_CHANGE_EVENT, callback);
-    window.removeEventListener('storage', callback);
   };
 };
 
@@ -113,7 +115,7 @@ export const sendMessage = async (grievanceId: string, content: string, type: Ch
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${getAccessToken()}`
         },
         body: JSON.stringify({ content, type, recipientId, recipientName })
     });
@@ -151,7 +153,7 @@ export const transferGrievance = async (grievanceId: string, toDept: Department,
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${getAccessToken()}`
         },
         body: JSON.stringify({ 
             department: toDept, 
@@ -172,7 +174,7 @@ export const getAllStaff = async (): Promise<User[]> => {
   try {
     const response = await fetch('/api/users/staff', {
         headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${getAccessToken()}`
         }
     });
     if (!response.ok) return [];
@@ -193,7 +195,7 @@ export const getUserById = async (id: string): Promise<User | null> => {
   try {
     const response = await fetch(`/api/users/${id}`, {
         headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${getAccessToken()}`
         }
     });
     if (!response.ok) return null;

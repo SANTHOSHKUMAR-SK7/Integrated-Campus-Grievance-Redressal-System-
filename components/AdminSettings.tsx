@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getAccessToken } from '../store';
 
 type RuntimeConfig = {
   database: {
@@ -45,7 +46,7 @@ const AdminSettings: React.FC = () => {
       try {
         const response = await fetch('/api/admin/runtime-config', {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+            Authorization: `Bearer ${getAccessToken()}`,
           },
         });
         const data = await response.json();

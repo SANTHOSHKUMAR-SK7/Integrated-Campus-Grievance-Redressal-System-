@@ -1,5 +1,6 @@
 
 import axios from 'axios';
+import { getAccessToken } from '../store';
 
 const BASE_URL = '/api';
 
@@ -12,7 +13,7 @@ const api = axios.create({
 
 // Interceptor for JWT
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

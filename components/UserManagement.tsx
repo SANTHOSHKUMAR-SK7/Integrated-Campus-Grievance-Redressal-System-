@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Department } from '../types';
+import { getAccessToken } from '../store';
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -21,7 +22,7 @@ const UserManagement: React.FC = () => {
     try {
       const response = await fetch('/api/users', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         }
       });
       if (response.ok) {
@@ -75,7 +76,7 @@ const UserManagement: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${getAccessToken()}`
           },
           body: JSON.stringify(usersToUpload)
         });
@@ -103,7 +104,7 @@ const UserManagement: React.FC = () => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         },
         body: JSON.stringify(data)
       });
@@ -122,7 +123,7 @@ const UserManagement: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         },
         body: JSON.stringify(newUser)
       });
@@ -152,7 +153,7 @@ const UserManagement: React.FC = () => {
       const response = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         }
       });
       if (response.ok) {

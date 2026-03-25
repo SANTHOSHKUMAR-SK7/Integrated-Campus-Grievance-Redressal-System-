@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getCurrentUser } from '../store';
+import { getAccessToken, getCurrentUser } from '../store';
 
 const ProfileSettings: React.FC = () => {
   const user = getCurrentUser();
@@ -26,7 +26,7 @@ const ProfileSettings: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${getAccessToken()}`
         },
         body: JSON.stringify({
           currentPassword: passwords.current,
