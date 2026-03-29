@@ -12,10 +12,15 @@ const AdminAnalytics: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getGrievances().then(res => {
+    const refreshAnalytics = async () => {
+      const res = await getGrievances();
       setData(res);
       setLoading(false);
-    });
+    };
+
+    refreshAnalytics();
+    const interval = setInterval(refreshAnalytics, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const stats = useMemo(() => ({
