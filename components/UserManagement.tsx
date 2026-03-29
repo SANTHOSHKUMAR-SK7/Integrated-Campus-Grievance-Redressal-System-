@@ -112,9 +112,13 @@ const UserManagement: React.FC = () => {
       if (response.ok) {
         setEditingUser(null);
         fetchUsers();
+      } else {
+        const err = await response.json();
+        alert(err.message || 'Failed to update user');
       }
     } catch (error) {
       console.error('Failed to update user:', error);
+      alert('Failed to update user. Please try again.');
     }
   };
 
@@ -163,9 +167,13 @@ const UserManagement: React.FC = () => {
       });
       if (response.ok) {
         fetchUsers();
+      } else {
+        const err = await response.json();
+        alert(err.message || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
+      alert('Failed to delete user. Please try again.');
     }
   };
 
@@ -358,10 +366,16 @@ const UserManagement: React.FC = () => {
                       <select 
                         value={editingUser.role}
                         onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
+                        disabled={currentUser?.id === editingUser.id}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
+                      {currentUser?.id === editingUser.id && (
+                        <p className="text-[10px] font-bold text-amber-600">
+                          Your own admin role cannot be changed from this session.
+                        </p>
+                      )}
                    </div>
                    <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-slate-400">Department</label>

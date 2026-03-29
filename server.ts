@@ -697,6 +697,10 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
     const user = await User.findOne({ id: req.params.id });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    if (req.user.id === req.params.id && req.body.role && req.body.role !== 'Admin') {
+      return res.status(400).json({ message: 'You cannot change the currently signed-in admin account to a non-admin role' });
+    }
+
     // If password is provided, hash it
     if (req.body.password) {
       const salt = await bcrypt.genSalt(10);
@@ -717,6 +721,23 @@ app.delete('/api/users/:id', authenticate, async (req: any, res) => {
     if (req.user.id === req.params.id) {
       return res.status(400).json({ message: 'You cannot delete the currently signed-in admin account' });
     }
+
+    const linkedGrievance = await Grievance.findOne({
+      $or: [
+        { studentId: req.params.id },
+        { assignedToId: req.params.id },
+        { 'conversation.senderId': req.params.id },
+        { 'conversation.recipientId': req.params.id },
+        { 'history.userId': req.params.id }
+      ]
+    }).select('id');
+
+    if (linkedGrievance) {
+      return res.status(400).json({
+        message: `Cannot delete this user because they are linked to grievance #${linkedGrievance.id}`
+      });
+    }
+
     const result = await User.deleteOne({ id: req.params.id });
     if (result.deletedCount === 0) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'User deleted successfully' });
