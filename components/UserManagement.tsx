@@ -3,6 +3,38 @@ import React, { useState, useEffect } from 'react';
 import { User, UserRole, Department } from '../types';
 import { getAccessToken, getCurrentUser } from '../store';
 
+const parseCsvLine = (line: string): string[] => {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+};
+
 const UserManagement: React.FC = () => {
   const currentUser = getCurrentUser();
   const [users, setUsers] = useState<User[]>([]);
@@ -48,12 +80,23 @@ const UserManagement: React.FC = () => {
     setIsBulkUploading(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const text = (event.target?.result as string).replace(/^\uFEFF/, '');
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (lines.length === 0) {
+        alert('The CSV file is empty.');
+        setIsBulkUploading(false);
+        e.target.value = '';
+        return;
+      }
+
+      const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
       
       const usersToUpload = lines.slice(1).filter(l => l.trim()).map(line => {
-        const values = line.split(',').map(v => v.trim());
+        const values = parseCsvLine(line);
         const user: any = {};
         headers.forEach((header, index) => {
           if (header === 'id') user.id = values[index];
