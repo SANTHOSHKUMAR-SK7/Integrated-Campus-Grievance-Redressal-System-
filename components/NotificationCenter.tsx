@@ -25,7 +25,9 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const getFallbackRoute = (notification: Notification) => {
     if (notification.type === 'message' || notification.type === 'status_change') {
-      return currentUser?.role === UserRole.STUDENT ? '/track' : '/manage';
+      if (currentUser?.role === UserRole.STUDENT) return '/track';
+      if (currentUser?.role === UserRole.ADMIN) return '/analytics';
+      return '/dashboard';
     }
     return '/dashboard';
   };
@@ -171,7 +173,13 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <button
           onClick={() => {
             onClose();
-            navigate(currentUser?.role === UserRole.STUDENT ? '/track' : '/dashboard');
+            if (currentUser?.role === UserRole.STUDENT) {
+              navigate('/track');
+            } else if (currentUser?.role === UserRole.ADMIN) {
+              navigate('/analytics');
+            } else {
+              navigate('/dashboard');
+            }
           }}
           className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
         >
