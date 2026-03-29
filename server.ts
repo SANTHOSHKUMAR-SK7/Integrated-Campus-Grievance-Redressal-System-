@@ -701,15 +701,34 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
       return res.status(400).json({ message: 'You cannot change the currently signed-in admin account to a non-admin role' });
     }
 
-    // If password is provided, hash it
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      req.body.password = await bcrypt.hash(req.body.password, salt);
+    const allowedFields = ['name', 'role', 'department', 'password'] as const;
+    const updates = Object.fromEntries(
+      Object.entries(req.body).filter(([key, value]) => {
+        if (!allowedFields.includes(key as (typeof allowedFields)[number])) return false;
+        if (key === 'password') return Boolean(String(value || '').trim());
+        return true;
+      })
+    );
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid user fields to update' });
     }
 
-    Object.assign(user, req.body);
+    // If password is provided, hash it
+    if (updates.password) {
+      const salt = await bcrypt.genSalt(10);
+      updates.password = await bcrypt.hash(String(updates.password), salt);
+    }
+
+    Object.assign(user, updates);
     await user.save();
-    res.json(user);
+    res.json({
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+      department: user.department
+    });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }

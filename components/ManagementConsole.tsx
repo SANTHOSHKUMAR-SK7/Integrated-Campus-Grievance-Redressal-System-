@@ -28,6 +28,7 @@ const ManagementConsole: React.FC = () => {
   const [transferDept, setTransferDept] = useState<Department | ''>('');
   const [transferStaffId, setTransferStaffId] = useState('');
   const [transferReason, setTransferReason] = useState('');
+  const [transferError, setTransferError] = useState('');
   const [showSolveModal, setShowSolveModal] = useState(false);
   const [solveDescription, setSolveDescription] = useState('');
   const [activeChatTab, setActiveChatTab] = useState<ChatType>(ChatType.STUDENT_STAFF);
@@ -122,13 +123,16 @@ const ManagementConsole: React.FC = () => {
 
   const handleTransfer = async () => {
     if (!grievance || !transferDept || !transferStaffId || !transferReason) return;
-    const res = await transferGrievance(grievance.id, transferDept as Department, transferStaffId, transferReason);
-    if (res) {
+    try {
+      const res = await transferGrievance(grievance.id, transferDept as Department, transferStaffId, transferReason);
       setGrievance(res);
+      setTransferError('');
       setShowTransfer(false);
       if (currentUser?.role === UserRole.STAFF && res.assignedToId !== currentUser.id) {
         navigate('/dashboard');
       }
+    } catch (error: any) {
+      setTransferError(error?.message || 'Unable to transfer grievance right now.');
     }
   };
 
@@ -444,14 +448,14 @@ const ManagementConsole: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Department</label>
-                  <select value={transferDept} onChange={e => setTransferDept(e.target.value as Department)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
+                  <select value={transferDept} onChange={e => { setTransferDept(e.target.value as Department); if (transferError) setTransferError(''); }} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
                     <option value="">Select Domain</option>
                     {Object.values(Department).map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Staff Member</label>
-                  <select value={transferStaffId} onChange={e => setTransferStaffId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
+                  <select value={transferStaffId} onChange={e => { setTransferStaffId(e.target.value); if (transferError) setTransferError(''); }} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
                     <option value="">Select Individual</option>
                     {staffList.filter(s => !transferDept || s.department === transferDept).map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -459,9 +463,12 @@ const ManagementConsole: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <textarea value={transferReason} onChange={e => setTransferReason(e.target.value)} placeholder="Reason for transfer..." className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 text-sm font-semibold h-32 resize-none outline-none focus:ring-2 focus:ring-indigo-500" />
+              <textarea value={transferReason} onChange={e => { setTransferReason(e.target.value); if (transferError) setTransferError(''); }} placeholder="Reason for transfer..." className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 text-sm font-semibold h-32 resize-none outline-none focus:ring-2 focus:ring-indigo-500" />
+              {transferError && (
+                <p className="text-xs font-bold text-red-600">{transferError}</p>
+              )}
               <div className="flex gap-4">
-                <button onClick={() => setShowTransfer(false)} className="flex-1 py-4.5 bg-slate-50 text-slate-500 font-bold rounded-2xl text-[11px] uppercase">Cancel</button>
+                <button onClick={() => { setShowTransfer(false); setTransferError(''); }} className="flex-1 py-4.5 bg-slate-50 text-slate-500 font-bold rounded-2xl text-[11px] uppercase">Cancel</button>
                 <button onClick={handleTransfer} disabled={!transferDept || !transferStaffId || !transferReason} className="flex-1 py-4.5 bg-indigo-600 text-white font-bold rounded-2xl text-[11px] uppercase">Transfer Now</button>
               </div>
             </div>

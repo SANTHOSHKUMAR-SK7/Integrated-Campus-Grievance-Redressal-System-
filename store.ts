@@ -141,11 +141,15 @@ export const sendMessage = async (grievanceId: string, content: string, type: Ch
 export const transferGrievance = async (grievanceId: string, toDept: Department, toStaffId: string, reason: string) => {
   try {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      throw new Error('You must be signed in to transfer a grievance.');
+    }
 
     const grievances = await getGrievances();
     const g = grievances.find(x => x.id === grievanceId);
-    if (!g) return;
+    if (!g) {
+      throw new Error('Grievance not found.');
+    }
 
     const now = Date.now();
     const updatedHistory = [
@@ -174,10 +178,14 @@ export const transferGrievance = async (grievanceId: string, toDept: Department,
         })
     });
 
-    if (!response.ok) throw new Error('Failed to transfer grievance');
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || 'Failed to transfer grievance');
+    }
     return await response.json();
   } catch (error) {
     console.error('Failed to transfer grievance:', error);
+    throw error;
   }
 };
 
