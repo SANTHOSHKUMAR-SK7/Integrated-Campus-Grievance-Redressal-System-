@@ -237,6 +237,11 @@ const computeSentiment = (text: string) => {
 };
 
 const createGrievanceId = () => `DAIT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+const PASSWORD_POLICY_MESSAGE = 'Password must be at least 8 characters and include uppercase, lowercase, and a number.';
+const isStrongPassword = (password: string) => {
+  const value = String(password || '');
+  return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
+};
 
 // --- API Routes ---
 
@@ -616,6 +621,10 @@ app.post('/api/users', authenticate, async (req: any, res) => {
   try {
     if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
     const { id, name, email, password, role, department } = req.body;
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+    }
     
     const existingUser = await User.findOne({ $or: [{ id }, { email }] });
     if (existingUser) return res.status(400).json({ message: 'User ID or Email already exists' });
@@ -647,7 +656,7 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
     if (!Array.isArray(users)) return res.status(400).json({ message: 'Invalid data format' });
 
     const salt = await bcrypt.genSalt(10);
-    const defaultPassword = await bcrypt.hash('password123', salt);
+    const defaultPassword = await bcrypt.hash('Dait2026', salt);
 
     const results = {
       success: 0,
@@ -723,6 +732,9 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
 
     // If password is provided, hash it
     if (updates.password) {
+      if (!isStrongPassword(String(updates.password))) {
+        return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+      }
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(String(updates.password), salt);
     }
@@ -780,6 +792,9 @@ app.post('/api/auth/change-password', authenticate, async (req: any, res) => {
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Incorrect current password' });
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+    }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
