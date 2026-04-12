@@ -204,6 +204,13 @@ const canMessageOnGrievance = (user: any, grievance: any) => {
   return canManageGrievance(user, grievance);
 };
 
+const canReceiveInternalGrievanceMessage = (recipient: any, grievance: any) => {
+  if (!recipient || !grievance) return false;
+  if (recipient.role === 'Admin') return true;
+  if (recipient.role !== 'Staff') return false;
+  return recipient.id === grievance.assignedToId || recipient.department === grievance.department;
+};
+
 const VALID_DEPARTMENTS = ['Technical', 'Infrastructure', 'Academic', 'Administrative', 'Mess', 'Hostel', 'Transport', 'Other'];
 const VALID_STATUSES = ['pending', 'in-progress', 'resolved', 'closed'];
 
@@ -420,8 +427,8 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
             }
 
             if (messageType === 'staff-staff') {
-                if (!['Staff', 'Admin'].includes(recipient.role)) {
-                    return res.status(400).json({ message: 'Recipient must be staff or admin' });
+                if (!canReceiveInternalGrievanceMessage(recipient, grievance)) {
+                    return res.status(400).json({ message: 'Recipient must be an admin or a staff member relevant to this grievance' });
                 }
             } else {
                 const isStudentOwner = recipient.id === grievance.studentId;
