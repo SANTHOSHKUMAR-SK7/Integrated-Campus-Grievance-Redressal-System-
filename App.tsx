@@ -7,7 +7,6 @@ import GrievanceTracker from './components/GrievanceTracker';
 import Dashboard from './components/Dashboard';
 import ManagementConsole from './components/ManagementConsole';
 import UserManagement from './components/UserManagement';
-import AdminSettings from './components/AdminSettings';
 import AdminAnalytics from './components/AdminAnalytics';
 import ProfileSettings from './components/ProfileSettings';
 import Login from './components/Login';
@@ -74,12 +73,6 @@ const App: React.FC = () => {
           <Route path="/analytics" element={
             <ProtectedRoute roles={[UserRole.ADMIN]}>
               <AdminAnalytics />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/settings" element={
-            <ProtectedRoute roles={[UserRole.ADMIN]}>
-              <AdminSettings />
             </ProtectedRoute>
           } />
 
