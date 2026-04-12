@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeGrievanceState } from '../services/geminiService';
 import { ChatMessage, Grievance, Status, Department, Severity } from '../types';
-import { saveGrievance, getResponsibleStaffId, getCurrentUser } from '../store';
+import { saveGrievance, getCurrentUser } from '../store';
 
 type ChatState = 'IDLE' | 'COLLECTING' | 'REVIEW' | 'DONE';
 
@@ -133,7 +133,6 @@ const GrievanceChatbot: React.FC = () => {
     const grievanceId = 'DAIT-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
     const now = Date.now();
     const dept = normalizeDepartment(analysis?.department);
-    const staffId = await getResponsibleStaffId(dept);
     const initialStatus = normalizeStatus(analysis?.initialStatus);
 
     const newGrievance: Grievance = {
@@ -146,7 +145,7 @@ const GrievanceChatbot: React.FC = () => {
       status: initialStatus,
       isAnonymous: isAnonymous,
       studentId: currentUser?.id || 'ANON',
-      assignedToId: staffId,
+      assignedToId: '',
       lastStatusChange: now,
       history: [{ status: initialStatus, timestamp: now, userId: 'SYSTEM', remark: `Case registered with initial status: ${initialStatus}` }],
       remarks: [],
