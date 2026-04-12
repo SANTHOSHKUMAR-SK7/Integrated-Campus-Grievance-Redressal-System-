@@ -808,6 +808,9 @@ app.post('/api/auth/change-password', authenticate, async (req: any, res) => {
 
 app.get('/api/users/staff', authenticate, async (req, res) => {
   try {
+    if (!['Staff', 'Admin'].includes((req as any).user.role)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
     const staff = await User.find({ role: 'Staff' }).select('id name role department');
     res.json(staff);
   } catch (err) {
