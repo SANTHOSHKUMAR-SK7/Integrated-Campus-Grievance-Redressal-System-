@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Department } from '../types';
 import { getAccessToken, getCurrentUser } from '../store';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 
 const parseCsvLine = (line: string): string[] => {
   const values: string[] = [];
@@ -46,7 +47,7 @@ const UserManagement: React.FC = () => {
     id: '',
     name: '',
     email: '',
-    password: 'password123', // Default dummy password
+    password: 'Dait2026',
     role: UserRole.STUDENT,
     department: '' as Department | ''
   });
@@ -166,6 +167,10 @@ const UserManagement: React.FC = () => {
   };
 
   const handleAddUser = async () => {
+    if (!isStrongPassword(newUser.password)) {
+      alert(PASSWORD_POLICY_MESSAGE);
+      return;
+    }
     try {
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -181,7 +186,7 @@ const UserManagement: React.FC = () => {
           id: '',
           name: '',
           email: '',
-          password: 'password123',
+          password: 'Dait2026',
           role: UserRole.STUDENT,
           department: ''
         });
@@ -345,6 +350,7 @@ const UserManagement: React.FC = () => {
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+                <p className="text-[11px] font-medium text-slate-400">{PASSWORD_POLICY_MESSAGE}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -440,6 +446,7 @@ const UserManagement: React.FC = () => {
                       onChange={(e) => setEditingUser({...editingUser, password: e.target.value})}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    <p className="text-[11px] font-medium text-slate-400">{PASSWORD_POLICY_MESSAGE}</p>
                  </div>
                  <div className="flex gap-4 pt-4">
                     <button 
@@ -449,12 +456,19 @@ const UserManagement: React.FC = () => {
                       Cancel
                     </button>
                     <button 
-                      onClick={() => handleUpdateUser(editingUser.id, { 
-                        name: editingUser.name, 
-                        role: editingUser.role, 
-                        department: editingUser.department,
-                        password: editingUser.password
-                      })}
+                      onClick={() => {
+                        const nextPassword = String(editingUser.password || '').trim();
+                        if (nextPassword && !isStrongPassword(nextPassword)) {
+                          alert(PASSWORD_POLICY_MESSAGE);
+                          return;
+                        }
+                        handleUpdateUser(editingUser.id, { 
+                          name: editingUser.name, 
+                          role: editingUser.role, 
+                          department: editingUser.department,
+                          password: editingUser.password
+                        });
+                      }}
                       className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-lg"
                     >
                       Save Changes
