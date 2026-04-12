@@ -26,7 +26,7 @@ app.use(express.json());
 
 // Database Connection Check Middleware
 app.use((req, res, next) => {
-  if (mongoose.connection.readyState !== 1 && req.path.startsWith('/api')) {
+  if (mongoose.connection.readyState !== 1 && req.path.startsWith('/api') && req.path !== '/api/health') {
     return res.status(503).json({ 
       message: 'Database connection not established. Please ensure 0.0.0.0/0 is whitelisted in MongoDB Atlas Network Access.' 
     });
@@ -906,7 +906,7 @@ async function seed() {
     if (count <= 1) {
       console.log('Seeding other initial users...');
       const initialUsers = [
-        { id: 'STU-01', name: 'Kj', role: 'Student', email: 'sk@dait.com', password: hashedPassword },
+        { id: 'STU-01', name: 'SK', role: 'Student', email: 'sk@dait.com', password: hashedPassword },
         { id: 'STAFF-TECH', name: 'Mr. Technical', role: 'Staff', email: 'tech@dait.com', password: hashedPassword, department: 'Technical' },
         { id: 'STAFF-ACAD', name: 'Dr. Academic', role: 'Staff', email: 'acad@dait.com', password: hashedPassword, department: 'Academic' },
       ];
