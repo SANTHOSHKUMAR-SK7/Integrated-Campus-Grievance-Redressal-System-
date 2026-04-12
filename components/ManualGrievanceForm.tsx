@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Department, Severity, Status } from '../types';
-import { getCurrentUser, getResponsibleStaffId, saveGrievance } from '../store';
+import { getCurrentUser, saveGrievance } from '../store';
 
 const computeSeverity = (text: string): Severity => {
   const normalized = text.toLowerCase();
@@ -63,7 +63,6 @@ const ManualGrievanceForm: React.FC = () => {
     try {
       const now = Date.now();
       const grievanceId = `DAIT-${now.toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const assignedToId = await getResponsibleStaffId(department);
       const severity = computeSeverity(`${title} ${description}`);
 
       await saveGrievance({
@@ -76,7 +75,6 @@ const ManualGrievanceForm: React.FC = () => {
         status: Status.PENDING,
         isAnonymous,
         studentId: currentUser.id,
-        assignedToId,
         timestamp: now,
         lastStatusChange: now,
         history: [{ status: Status.PENDING, timestamp: now, userId: currentUser.id, remark: 'Grievance submitted' }],
