@@ -108,7 +108,10 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  const worklist = grievances.filter((g) => g.assignedToId === user.id || user.role === UserRole.ADMIN);
+  const worklist = grievances.filter((g) => {
+    if (user.role === UserRole.ADMIN) return true;
+    return g.assignedToId === user.id || g.department === user.department;
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
