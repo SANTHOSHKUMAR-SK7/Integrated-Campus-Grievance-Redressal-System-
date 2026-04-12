@@ -1,6 +1,6 @@
 
-# FASTAPI BACKEND BLUEPRINT (Python)
-# File: backend/main.py
+# Reference-only FastAPI blueprint.
+# This file is not used by the current `npm run dev` application, which runs `server.ts`.
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
