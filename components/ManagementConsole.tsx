@@ -20,6 +20,7 @@ const ManagementConsole: React.FC = () => {
   const [staffList, setStaffList] = useState<User[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatError, setChatError] = useState('');
+  const [statusError, setStatusError] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string, actionPoints: string[], toneRecommendation: string } | null>(null);
@@ -118,8 +119,13 @@ const ManagementConsole: React.FC = () => {
       lastStatusChange: now,
       history: [...grievance.history, { status, timestamp: now, userId: currentUser.id, remark: `Status updated to ${status}` }]
     };
-    await updateGrievance(updated);
-    setGrievance(updated);
+    try {
+      await updateGrievance(updated);
+      setGrievance(updated);
+      setStatusError('');
+    } catch (error: any) {
+      setStatusError(error?.message || 'Unable to update case status right now.');
+    }
   };
 
   const handleResolve = async () => {
@@ -133,10 +139,15 @@ const ManagementConsole: React.FC = () => {
       history: [...grievance.history, { status: Status.RESOLVED, timestamp: now, userId: currentUser.id, remark: `Resolved: ${solveDescription}` }],
       remarks: [...(grievance.remarks || []), solveDescription]
     };
-    await updateGrievance(updated);
-    setGrievance(updated);
-    setShowSolveModal(false);
-    setSolveDescription('');
+    try {
+      await updateGrievance(updated);
+      setGrievance(updated);
+      setShowSolveModal(false);
+      setSolveDescription('');
+      setStatusError('');
+    } catch (error: any) {
+      setStatusError(error?.message || 'Unable to resolve this case right now.');
+    }
   };
 
   const handleTransfer = async () => {
@@ -262,6 +273,9 @@ const ManagementConsole: React.FC = () => {
                 </button>
               )}
             </div>
+            {statusError && (
+              <p className="text-xs font-bold text-red-600">{statusError}</p>
+            )}
             {grievance.status === Status.RESOLVED && (
               <button
                 onClick={handleDownloadReport}
