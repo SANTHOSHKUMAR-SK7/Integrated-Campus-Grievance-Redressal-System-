@@ -125,9 +125,12 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard label="Assigned" value={worklist.length} subtext="Active cases" icon="Case" />
         <StatCard
-          label="Unread"
-          value={worklist.filter((g) => g.conversation && g.conversation.length > 0 && g.conversation[g.conversation.length - 1].senderRole === UserRole.STUDENT).length}
-          subtext="Student messages"
+          label="Awaiting Reply"
+          value={worklist.filter((g) => {
+            const visibleMessages = (g.conversation || []).filter((message) => !message.type || message.type === ChatType.STUDENT_STAFF);
+            return visibleMessages.length > 0 && visibleMessages[visibleMessages.length - 1].senderRole === UserRole.STUDENT;
+          }).length}
+          subtext="Student last response"
           icon="Inbox"
           color="text-indigo-600"
         />
