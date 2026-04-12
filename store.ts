@@ -204,12 +204,6 @@ export const getAllStaff = async (): Promise<User[]> => {
   }
 };
 
-export const getResponsibleStaffId = async (department: Department): Promise<string> => {
-  const staff = await getAllStaff();
-  const deptStaff = staff.filter(s => s.department === department);
-  return deptStaff.length > 0 ? deptStaff[0].id : 'ADM-PRIN';
-};
-
 export const getUserById = async (id: string): Promise<User | null> => {
   try {
     const response = await fetch(`/api/users/${id}`, {
