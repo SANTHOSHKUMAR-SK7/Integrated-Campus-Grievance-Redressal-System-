@@ -400,7 +400,7 @@ const ManagementConsole: React.FC = () => {
                 const res = await getStaffAssistance(grievance);
                 setAiResponse(res || 'Mediator busy. Try again.');
               } catch (e) {
-                setAiResponse('AI Gateway Timeout.');
+                setAiResponse('AI support is unavailable right now. Please try again shortly.');
               } finally {
                 setIsAiLoading(false);
               }
