@@ -124,6 +124,7 @@ const ManagementConsole: React.FC = () => {
 
   const handleResolve = async () => {
     if (!grievance || !currentUser || !solveDescription.trim()) return;
+    if (grievance.status === Status.RESOLVED || grievance.status === Status.CLOSED) return;
     const now = Date.now();
     const updated = {
       ...grievance,
@@ -240,7 +241,26 @@ const ManagementConsole: React.FC = () => {
               >
                 {grievance.status !== Status.PENDING ? 'Accepted Case' : 'Accept Case'}
               </button>
-              <button onClick={() => setShowSolveModal(true)} className="py-3.5 bg-emerald-600 text-white font-bold text-[11px] rounded-2xl uppercase hover:bg-emerald-700 transition-all shadow-lg active:scale-95">Resolve</button>
+              {grievance.status === Status.RESOLVED ? (
+                <button
+                  onClick={() => handleUpdateStatus(Status.CLOSED)}
+                  className="py-3.5 bg-slate-900 text-white font-bold text-[11px] rounded-2xl uppercase hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                >
+                  Close Case
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSolveModal(true)}
+                  disabled={grievance.status === Status.CLOSED}
+                  className={`py-3.5 font-bold text-[11px] rounded-2xl uppercase transition-all shadow-lg active:scale-95 ${
+                    grievance.status === Status.CLOSED
+                      ? 'bg-slate-100 text-slate-400 opacity-70 cursor-not-allowed shadow-none'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  Resolve
+                </button>
+              )}
             </div>
             {grievance.status === Status.RESOLVED && (
               <button
