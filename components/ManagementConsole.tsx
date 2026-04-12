@@ -14,6 +14,7 @@ const ManagementConsole: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const [grievance, setGrievance] = useState<Grievance | null>(null);
+  const [availableGrievances, setAvailableGrievances] = useState<Grievance[]>([]);
   const [student, setStudent] = useState<User | null>(null);
   const [assignedStaff, setAssignedStaff] = useState<User | null>(null);
   const [staffList, setStaffList] = useState<User[]>([]);
@@ -38,20 +39,36 @@ const ManagementConsole: React.FC = () => {
 
   const refreshGrievance = async () => {
     const id = location.state?.grievanceId || new URLSearchParams(location.search).get('grievanceId');
-    if (id) {
-      const all = await getGrievances();
-      const g = all.find(x => x.id === id);
-      if (g) {
-        setGrievance(g);
-        if (!g.isAnonymous) {
-          const u = await getUserById(g.studentId);
-          setStudent(u);
-        }
-        if (g.assignedToId) {
-          const s = await getUserById(g.assignedToId);
-          setAssignedStaff(s);
-        }
-      }
+    const all = await getGrievances();
+    setAvailableGrievances(all);
+
+    if (!id) {
+      setGrievance(null);
+      setStudent(null);
+      setAssignedStaff(null);
+      return;
+    }
+
+    const g = all.find(x => x.id === id);
+    if (!g) {
+      setGrievance(null);
+      setStudent(null);
+      setAssignedStaff(null);
+      return;
+    }
+
+    setGrievance(g);
+    if (!g.isAnonymous) {
+      const u = await getUserById(g.studentId);
+      setStudent(u);
+    } else {
+      setStudent(null);
+    }
+    if (g.assignedToId) {
+      const s = await getUserById(g.assignedToId);
+      setAssignedStaff(s);
+    } else {
+      setAssignedStaff(null);
     }
   };
 
@@ -136,7 +153,57 @@ const ManagementConsole: React.FC = () => {
     }
   };
 
-  if (!grievance || !currentUser) return <div className="p-20 text-center text-slate-400 font-bold">Please select a case from your dashboard.</div>;
+  if (!currentUser) return null;
+
+  if (!grievance) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Direct Worklist</h2>
+          <p className="text-slate-500 font-medium">Choose a grievance from your accessible staff worklist.</p>
+        </div>
+
+        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-black text-slate-900 tracking-tight">Available Cases</h3>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {availableGrievances.length} visible
+            </span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {availableGrievances.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => navigate(`/manage?grievanceId=${encodeURIComponent(item.id)}`)}
+                className="w-full px-8 py-6 text-left hover:bg-slate-50 transition-all"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-slate-900">#{item.id}</p>
+                    <p className="text-sm font-bold text-slate-700 mt-1 line-clamp-1">{item.title || item.description}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
+                      {item.department} {item.assignedToId === currentUser.id ? '• Assigned to you' : '• Department access'}
+                    </p>
+                  </div>
+                  <span className={COLORS.status[item.status]}>{item.status}</span>
+                </div>
+              </button>
+            ))}
+            {availableGrievances.length === 0 && (
+              <div className="p-16 text-center text-slate-400 text-sm font-medium italic">
+                No accessible grievances found right now.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const internalRecipients = staffList.filter((staffMember) => {
+    if (staffMember.id === currentUser.id) return false;
+    return staffMember.id === grievance.assignedToId || staffMember.department === grievance.department;
+  });
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-160px)] animate-in fade-in duration-500 overflow-hidden">
@@ -355,7 +422,7 @@ const ManagementConsole: React.FC = () => {
                 className="flex-1 bg-white border border-indigo-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">All Staff (Public Note)</option>
-                {staffList.filter(s => s.id !== currentUser.id).map(s => (
+                {internalRecipients.map(s => (
                   <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
                 ))}
               </select>
