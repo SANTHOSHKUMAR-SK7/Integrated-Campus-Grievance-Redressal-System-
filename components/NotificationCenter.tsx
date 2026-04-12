@@ -27,7 +27,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (notification.type === 'message' || notification.type === 'status_change') {
       if (currentUser?.role === UserRole.STUDENT) return '/track';
       if (currentUser?.role === UserRole.ADMIN) return '/analytics';
-      return '/dashboard';
+      return '/manage';
     }
     return '/dashboard';
   };
@@ -178,7 +178,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             } else if (currentUser?.role === UserRole.ADMIN) {
               navigate('/analytics');
             } else {
-              navigate('/dashboard');
+              navigate('/manage');
             }
           }}
           className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
