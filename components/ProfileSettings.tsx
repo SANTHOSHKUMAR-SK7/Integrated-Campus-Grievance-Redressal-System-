@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getAccessToken, getCurrentUser } from '../store';
+import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
 
 const ProfileSettings: React.FC = () => {
   const user = getCurrentUser();
@@ -15,6 +16,10 @@ const ProfileSettings: React.FC = () => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
       setStatus({ type: 'error', message: 'New passwords do not match' });
+      return;
+    }
+    if (!isStrongPassword(passwords.new)) {
+      setStatus({ type: 'error', message: PASSWORD_POLICY_MESSAGE });
       return;
     }
 
@@ -124,6 +129,7 @@ const ProfileSettings: React.FC = () => {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     placeholder="Enter new password"
                   />
+                  <p className="text-[11px] font-medium text-slate-400">{PASSWORD_POLICY_MESSAGE}</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Confirm New Password</label>
