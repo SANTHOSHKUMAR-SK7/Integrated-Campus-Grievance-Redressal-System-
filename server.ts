@@ -793,17 +793,69 @@ app.post('/api/auth/change-password', authenticate, async (req: any, res) => {
 
 app.get('/api/users/staff', authenticate, async (req, res) => {
   try {
-    const staff = await User.find({ role: 'Staff' }).select('-password');
+    const staff = await User.find({ role: 'Staff' }).select('id name role department');
     res.json(staff);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-app.get('/api/users/:id', authenticate, async (req, res) => {
+app.get('/api/users/:id', authenticate, async (req: any, res) => {
     try {
         const user = await User.findOne({ id: req.params.id }).select('-password');
-        res.json(user);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        if (req.user.role === 'Admin') {
+          return res.json(user);
+        }
+
+        if (req.user.id === req.params.id) {
+          return res.json(user);
+        }
+
+        if (req.user.role === 'Staff') {
+          const grievance = await Grievance.findOne({
+            studentId: user.id,
+            $or: [{ assignedToId: req.user.id }, { department: req.user.department }]
+          }).select('id');
+
+          if (grievance) {
+            return res.json({
+              id: user.id,
+              name: user.name,
+              role: user.role,
+              email: user.email,
+              department: user.department
+            });
+          }
+
+          if (user.role === 'Staff' || user.role === 'Admin') {
+            return res.json({
+              id: user.id,
+              name: user.name,
+              role: user.role,
+              department: user.department
+            });
+          }
+        }
+
+        if (req.user.role === 'Student' && (user.role === 'Staff' || user.role === 'Admin')) {
+          const grievance = await Grievance.findOne({
+            studentId: req.user.id,
+            assignedToId: user.id
+          }).select('id');
+
+          if (grievance || user.role === 'Admin') {
+            return res.json({
+              id: user.id,
+              name: user.name,
+              role: user.role,
+              department: user.department
+            });
+          }
+        }
+
+        return res.status(403).json({ message: 'Forbidden' });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
