@@ -172,6 +172,11 @@ async function buildGrievanceLinkForUser(userId: string, grievanceId: string) {
   return `${basePath}?grievanceId=${encodeURIComponent(grievanceId)}`;
 }
 
+async function getFallbackAdminId() {
+  const adminUser = await User.findOne({ role: 'Admin' }).sort({ _id: 1 }).select('id');
+  return adminUser?.id || '';
+}
+
 // --- Auth Middleware ---
 
 const authenticate = (req: any, res: any, next: any) => {
@@ -319,6 +324,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       ? String(req.body.status).toLowerCase()
       : 'pending';
     const assignedStaff = await User.findOne({ role: 'Staff', department }).select('id');
+    const fallbackAdminId = await getFallbackAdminId();
     const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
     
     const grievanceData = {
@@ -331,7 +337,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       sentiment,
       status,
       studentId: req.user.id,
-      assignedToId: req.body.assignedToId || assignedStaff?.id || 'ADM-PRIN',
+      assignedToId: req.body.assignedToId || assignedStaff?.id || fallbackAdminId,
       timestamp: Date.now(),
       lastStatusChange: Date.now(),
       history: [{
@@ -893,8 +899,8 @@ async function seed() {
     if (!adminUser) {
       console.log('Seeding admin user...');
       await new User({ 
-        id: 'ADM-PRIN', 
-        name: 'Principal (DAIT)', 
+        id: 'ADMIN-01', 
+        name: 'Admin (DAIT)', 
         role: 'Admin', 
         email: adminEmail, 
         password: hashedPassword, 
