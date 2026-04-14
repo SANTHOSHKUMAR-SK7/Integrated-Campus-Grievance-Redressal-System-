@@ -101,29 +101,54 @@ const GrievanceChatbot: React.FC = () => {
           );
         }
       } else if (state === 'REVIEW') {
-        if (/confirm|confirmed|yes|correct|ok|submit|proceed|continue|finalize/i.test(userMessage)) {
+        const lowerMessage = userMessage.toLowerCase().trim();
+        if (/confirm|confirmed|yes|correct|ok|submit|proceed|continue|finalize|done/i.test(lowerMessage)) {
           await finalizeGrievance();
+        } else if (/cancel|stop|abort|quit|nevermind/i.test(lowerMessage)) {
+          setState('IDLE');
+          setAnalysis(null);
+          addBotMessage('Conversation cancelled. You can start a new grievance anytime.');
+        } else if (/edit|change|modify|back/i.test(lowerMessage)) {
+          setState('COLLECTING');
+          addBotMessage('Let\'s revise your grievance. Please provide more details or clarify your concern.');
+        } else if (/restart|start over|new/i.test(lowerMessage)) {
+          setState('IDLE');
+          setAnalysis(null);
+          setMessages([
+            { role: 'assistant', content: `Identity verified. Greetings, ${currentUser?.name}. I am the AI Redressal Assistant. Briefly state the institutional concern you wish to report.` }
+          ]);
         } else {
-          addBotMessage('Re-analyzing session context...');
+          addBotMessage('Re-analyzing your input...');
           const updatedResult = await analyzeGrievanceState(userMessage, chatHistory);
           setAnalysis(updatedResult);
           addBotMessage(
-            `Revised Summary: ${updatedResult.summary}\n\n` +
+            `Updated Summary: ${updatedResult.summary}\n\n` +
             `Department: ${updatedResult.department}\n` +
             `Severity: ${String(updatedResult.severity || '').toUpperCase()}\n\n` +
-            `Type 'Confirm' to finalize filing.`
+            `Options:\n` +
+            `- Type 'Confirm' to submit\n` +
+            `- Type 'Edit' to modify details\n` +
+            `- Type 'Cancel' to stop\n` +
+            `- Type 'Restart' for a new grievance`
           );
         }
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : '';
+      console.error('Chatbot error:', e);
       if (/AI service is not configured|Gemini API key/i.test(errorMessage)) {
-        addBotMessage('AI assistant is not configured right now. Please set the Gemini API key and restart the server.');
+        addBotMessage('AI analysis is temporarily unavailable. You can still submit your grievance manually through the form, or try again later.');
       } else if (/Request failed with status code|Failed to save grievance|Network Error/i.test(errorMessage)) {
-        addBotMessage('Unable to submit the grievance right now. Please try again in a moment.');
+        addBotMessage('Connection issue. Please check your internet and try again. Your grievance details are saved locally.');
+      } else if (/timeout|timed out/i.test(errorMessage)) {
+        addBotMessage('Request timed out. Please try submitting again or use the manual form.');
       } else {
-        addBotMessage('Unable to continue this filing right now. Please try again.');
+        addBotMessage('Something went wrong. Please try again or contact support. You can also submit manually.');
       }
+      // Allow user to continue or restart
+      setTimeout(() => {
+        addBotMessage('Type "restart" to start over, or "manual" to use the form instead.');
+      }, 2000);
     } finally {
       setIsTyping(false);
     }
@@ -188,6 +213,24 @@ const GrievanceChatbot: React.FC = () => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
     const msg = input.trim();
+
+    // Handle special commands
+    const lowerMsg = msg.toLowerCase();
+    if (lowerMsg === 'restart' || lowerMsg === 'start over') {
+      setState('IDLE');
+      setAnalysis(null);
+      setMessages([
+        { role: 'assistant', content: `Identity verified. Greetings, ${currentUser?.name}. I am the AI Redressal Assistant. Briefly state the institutional concern you wish to report.` }
+      ]);
+      setInput('');
+      return;
+    }
+    if (lowerMsg === 'manual' || lowerMsg === 'form') {
+      setMessages(prev => [...prev, { role: 'user', content: msg }, { role: 'assistant', content: 'Switching to manual form. Please use the "Raise Grievance" section instead.' }]);
+      setInput('');
+      return;
+    }
+
     const nextMessages = [...messages, { role: 'user' as const, content: msg }];
     setMessages(nextMessages);
     setInput('');
