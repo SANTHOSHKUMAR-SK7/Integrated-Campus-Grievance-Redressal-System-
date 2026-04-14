@@ -1,4 +1,4 @@
-import { analyzeGrievanceState } from './services/geminiService.js';
+import { analyzeGrievanceState } from './services/geminiService.ts';
 
 async function testAI() {
   try {
