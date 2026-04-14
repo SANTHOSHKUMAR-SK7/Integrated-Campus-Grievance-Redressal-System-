@@ -305,6 +305,23 @@ app.get('/api/grievances', authenticate, async (req: any, res) => {
   }
 });
 
+app.get('/api/grievances/:id', authenticate, async (req: any, res) => {
+  try {
+    const grievance = await Grievance.findOne({ id: req.params.id });
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    if (req.user.role === 'Student' && grievance.studentId !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id && grievance.department !== req.user.department) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    res.json(grievance);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.post('/api/grievances', authenticate, async (req: any, res) => {
   try {
     console.log('--- Grievance Submission Start ---');

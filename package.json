@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.37.0",
+    "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.4",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
+    "es-toolkit": "^1.45.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.0",
@@ -31,7 +33,12 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^22.14.0",
+    "@types/nodemailer": "^6.4.16",
     "@types/react": "^19.2.3",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
