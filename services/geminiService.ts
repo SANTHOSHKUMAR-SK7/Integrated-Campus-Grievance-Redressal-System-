@@ -164,43 +164,6 @@ export const analyzeGrievanceState = async (complaintText: string, history: Chat
   }
 };
 
-export const getStaffAssistance = async (grievance: any) => {
-  try {
-    const ai = getAI();
-
-    const prompt = `
-      Case Details:
-      Title: ${grievance.title}
-      Description: ${grievance.description}
-      Department: ${grievance.department}
-      Status: ${grievance.status}
-      
-      History:
-      ${JSON.stringify(grievance.history, null, 2)}
-      
-      Conversation:
-      ${JSON.stringify(grievance.conversation, null, 2)}
-      
-      Task:
-      1. Summarize the case details and the flow of actions based on the history and conversation.
-      2. Give professional, actionable suggestions for solving this issue practically.
-    `;
-
-    const result = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        systemInstruction: "You are a professional Staff Problem Solver. Provide concise summaries and effective resolution strategies.",
-      }
-    });
-
-    return result.text;
-  } catch (error) {
-    console.error('AI Error:', error);
-    return 'Staff mediator currently unavailable.';
-  }
-};
-
 const buildFallbackGrievanceSummary = (grievanceData?: any) => {
   const title = String(grievanceData?.title || 'General grievance').trim();
   const description = String(grievanceData?.description || '').trim();

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getGrievances, updateGrievance, getCurrentUser, sendMessage, getUserById, getAllStaff, transferGrievance } from '../store';
 import { Grievance, Status, UserRole, Department, User, ChatType } from '../types';
 import { COLORS } from '../constants';
-import { getStaffAssistance, getGrievanceSummary } from '../services/geminiService';
+import { getGrievanceSummary } from '../services/geminiService';
 import { generateGrievanceReport } from '../services/reportService';
 import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
@@ -22,8 +22,6 @@ const ManagementConsole: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatError, setChatError] = useState('');
   const [statusError, setStatusError] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string, actionPoints: string[], toneRecommendation: string } | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState('');
@@ -89,9 +87,7 @@ const ManagementConsole: React.FC = () => {
 
   useEffect(() => {
     setAiSummary(null);
-    setAiResponse('');
     setIsSummaryLoading(false);
-    setIsAiLoading(false);
     setSummaryError('');
   }, [grievance?.id]);
 
@@ -447,42 +443,6 @@ const ManagementConsole: React.FC = () => {
               </div>
             </div>
           ) : <div className="p-4 text-center text-xs font-bold text-slate-300 animate-pulse">Loading identity...</div>}
-        </div>
-
-        {/* AI MEDIATOR TOOL: Staff Support */}
-        <div className="bg-indigo-900 rounded-[32px] p-7 text-white shadow-xl shadow-indigo-900/10 flex flex-col gap-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center font-black text-[10px]">AI</div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em]">Mediator Advice</p>
-            </div>
-            {isAiLoading && <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>}
-          </div>
-
-          <div className="min-h-[80px]">
-            <p className="text-[12px] leading-relaxed text-indigo-100/80 font-medium italic">
-              {aiResponse || 'Consult the mediator for resolution strategies and student communication drafts.'}
-            </p>
-          </div>
-
-          <button
-            onClick={async () => {
-              if (!grievance) return;
-              setIsAiLoading(true);
-              try {
-                const res = await getStaffAssistance(grievance);
-                setAiResponse(res || 'Mediator busy. Try again.');
-              } catch (e) {
-                setAiResponse('AI support is unavailable right now. Please try again shortly.');
-              } finally {
-                setIsAiLoading(false);
-              }
-            }}
-            disabled={isAiLoading}
-            className="w-full py-3.5 bg-white text-indigo-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-indigo-950/20"
-          >
-            Get Expert Support
-          </button>
         </div>
 
         {/* Timeline Visualization */}
