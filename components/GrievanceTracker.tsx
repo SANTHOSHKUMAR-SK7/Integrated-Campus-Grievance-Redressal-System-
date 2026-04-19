@@ -5,6 +5,7 @@ import { getGrievances, getCurrentUser, sendMessage } from '../store';
 import { Grievance, Status, Department, ChatType } from '../types';
 import { ICONS, COLORS } from '../constants';
 import Timeline from './Timeline';
+import AttachmentViewer from './AttachmentViewer';
 
 const GrievanceTracker: React.FC = () => {
   const user = getCurrentUser();
@@ -225,10 +226,11 @@ const GrievanceTracker: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="lg:w-80 shrink-0">
+                <div className="lg:w-80 shrink-0 space-y-6">
                   <div className="bg-white rounded-3xl border border-slate-100 p-6 sticky top-0">
                     <Timeline history={selectedGrievance.history || []} />
                   </div>
+                  <AttachmentViewer attachments={selectedGrievance.attachments as any} grievanceId={selectedGrievance.id} />
                 </div>
               </div>
             </div>
