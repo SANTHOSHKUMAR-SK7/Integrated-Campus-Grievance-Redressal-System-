@@ -178,6 +178,37 @@ async function getFallbackAdminId() {
   return adminUser?.id || '';
 }
 
+async function getAdminIds() {
+  const admins = await User.find({ role: 'Admin' }).select('id');
+  return admins.map((admin) => admin.id);
+}
+
+async function getDepartmentStaffIds(department?: string) {
+  const normalizedDepartment = normalizeDepartment(department);
+  const staffMembers = await User.find({ role: 'Staff', department: normalizedDepartment }).select('id');
+  return staffMembers.map((staffMember) => staffMember.id);
+}
+
+async function notifyManyUsers(
+  userIds: Array<string | undefined>,
+  title: string,
+  message: string,
+  type: string = 'system',
+  grievanceId?: string,
+  excludeUserIds: string[] = []
+) {
+  const uniqueUserIds = [...new Set(
+    userIds
+      .filter((userId): userId is string => Boolean(userId))
+      .filter((userId) => !excludeUserIds.includes(userId))
+  )];
+
+  for (const userId of uniqueUserIds) {
+    const link = grievanceId ? await buildGrievanceLinkForUser(userId, grievanceId) : undefined;
+    await createNotification(userId, title, message, type, link);
+  }
+}
+
 async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name: string; department?: string }) {
   const rawDepartment = String(staffUser.department || '').trim();
   if (!rawDepartment) {
@@ -222,13 +253,27 @@ async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name
     await grievance.save();
     grievanceIds.push(grievance.id);
 
-    const grievanceLink = await buildGrievanceLinkForUser(staffUser.id, grievance.id);
-    createNotification(
-      staffUser.id,
+    const adminIds = await getAdminIds();
+    await notifyManyUsers(
+      [staffUser.id],
       'Grievance Auto-Assigned',
       `Grievance #${grievance.id} has been automatically assigned to you for the ${department} department.`,
       'system',
-      grievanceLink
+      grievance.id
+    );
+    await notifyManyUsers(
+      [grievance.studentId],
+      'Grievance Handler Assigned',
+      `Your grievance #${grievance.id} is now assigned to ${staffUser.name} from the ${department} team.`,
+      'status_change',
+      grievance.id
+    );
+    await notifyManyUsers(
+      adminIds,
+      'Backlog Grievance Assigned',
+      `Grievance #${grievance.id} has been auto-assigned to ${staffUser.name} in ${department}.`,
+      'system',
+      grievance.id
     );
   }
 
@@ -476,12 +521,39 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     await grievance.save();
     console.log('Grievance saved successfully:', grievance.id);
 
-    // Notify Admin/Staff
+    const adminIds = await getAdminIds();
+    const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
+    const assignedHandler = grievance.assignedToId || fallbackAdminId;
+
+    await notifyManyUsers(
+      [grievance.studentId],
+      'Grievance Submitted Successfully',
+      `Your grievance #${grievance.id} has been submitted under ${grievance.department}.`,
+      'system',
+      grievance.id
+    );
+
     try {
-      const staff = await User.findOne({ role: 'Staff', department: grievance.department });
-      if (staff) {
-        const grievanceLink = await buildGrievanceLinkForUser(staff.id, grievance.id);
-        createNotification(staff.id, 'New Grievance Filed', `A new grievance #${grievance.id} has been filed in your department: ${grievance.title}`, 'system', grievanceLink);
+      await notifyManyUsers(
+        [...departmentStaffIds, ...adminIds],
+        'New Grievance Filed',
+        `A new grievance #${grievance.id} has been filed in ${grievance.department}: ${grievance.title}`,
+        'system',
+        grievance.id,
+        [grievance.studentId]
+      );
+
+      if (assignedHandler) {
+        const assignedUser = await User.findOne({ id: assignedHandler }).select('name role');
+        if (assignedUser) {
+          await notifyManyUsers(
+            [grievance.studentId],
+            'Grievance Routed',
+            `Your grievance #${grievance.id} has been routed to ${assignedUser.name}.`,
+            'status_change',
+            grievance.id
+          );
+        }
       }
     } catch (notifErr) {
       console.error('Failed to send notification for new grievance:', notifErr);
@@ -499,6 +571,8 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
   try {
     const grievance = await Grievance.findOne({ id: req.params.id });
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+    const previousDepartment = grievance.department;
+    const previousAssignedToId = grievance.assignedToId;
 
     if (!canManageGrievance(req.user, grievance)) {
       return res.status(403).json({ message: 'Forbidden' });
@@ -516,6 +590,28 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
 
     Object.assign(grievance, updates);
     await grievance.save();
+
+    const adminIds = await getAdminIds();
+    const previousDepartmentStaffIds = await getDepartmentStaffIds(previousDepartment);
+    const currentDepartmentStaffIds = await getDepartmentStaffIds(grievance.department);
+    const previousHandler = previousAssignedToId ? await User.findOne({ id: previousAssignedToId }).select('name') : null;
+    const currentHandler = grievance.assignedToId ? await User.findOne({ id: grievance.assignedToId }).select('name') : null;
+    const assignmentChanged = previousAssignedToId !== grievance.assignedToId;
+    const departmentChanged = previousDepartment !== grievance.department;
+    const actorName = req.user.name || req.user.id || 'System';
+
+    if (assignmentChanged || departmentChanged) {
+      const updateMessage = `Grievance #${grievance.id} was reassigned by ${actorName}${departmentChanged ? ` from ${previousDepartment} to ${grievance.department}` : ''}${currentHandler ? ` and is now handled by ${currentHandler.name}` : ''}.`;
+
+      await notifyManyUsers(
+        [grievance.studentId, previousAssignedToId, grievance.assignedToId, ...previousDepartmentStaffIds, ...currentDepartmentStaffIds, ...adminIds],
+        'Grievance Reassigned',
+        updateMessage,
+        'system',
+        grievance.id,
+        [req.user.id]
+      );
+    }
 
     res.json(grievance);
   } catch (err) {
@@ -589,10 +685,38 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
         grievance.conversation.push(newMessage);
         await grievance.save();
 
-        // Notify recipient if specified
+        const adminIds = await getAdminIds();
+        const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
+
         if (recipientId) {
-            const grievanceLink = await buildGrievanceLinkForUser(recipientId, grievance.id);
-            createNotification(recipientId, 'New Message Received', `You have a new message from ${user.name} regarding grievance #${grievance.id}`, 'message', grievanceLink);
+            await notifyManyUsers(
+                [recipientId],
+                'New Message Received',
+                `You have a new message from ${user.name} regarding grievance #${grievance.id}.`,
+                'message',
+                grievance.id,
+                [user.id]
+            );
+        }
+
+        if (messageType === 'student-staff') {
+            await notifyManyUsers(
+                [grievance.studentId, grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+                'Grievance Conversation Updated',
+                `${user.name} added a new message on grievance #${grievance.id}.`,
+                'message',
+                grievance.id,
+                [user.id, recipientId].filter(Boolean) as string[]
+            );
+        } else {
+            await notifyManyUsers(
+                [grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+                'Internal Grievance Note Added',
+                `${user.name} added an internal note on grievance #${grievance.id}.`,
+                'system',
+                grievance.id,
+                [user.id, recipientId].filter(Boolean) as string[]
+            );
         }
 
         res.json(grievance);
@@ -631,18 +755,16 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
 
     await grievance.save();
 
-    // Notify student
-    const student = await User.findOne({ id: grievance.studentId });
-    if (student) {
-      const grievanceLink = await buildGrievanceLinkForUser(student.id, grievance.id);
-      createNotification(
-        student.id, 
-        'Grievance Status Updated', 
-        `Your grievance #${grievance.id} status is now: ${status}`, 
-        'status_change', 
-        grievanceLink
-      );
-    }
+    const adminIds = await getAdminIds();
+    const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
+    await notifyManyUsers(
+      [grievance.studentId, grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+      'Grievance Status Updated',
+      `Grievance #${grievance.id} status is now ${status}${remark ? `: ${remark}` : ''}.`,
+      'status_change',
+      grievance.id,
+      [req.user.id]
+    );
 
     res.json(grievance);
   } catch (err) {
@@ -779,6 +901,13 @@ app.post('/api/users', authenticate, async (req: any, res) => {
       });
     }
 
+    await notifyManyUsers(
+      [newUser.id],
+      'Account Created',
+      `Your ${role} account has been created successfully${newUser.department ? ` for ${newUser.department}` : ''}.`,
+      'system'
+    );
+
     res.status(201).json({
       message: 'User created successfully',
       reassignmentSummary
@@ -850,6 +979,13 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
             });
           }
         }
+
+        await notifyManyUsers(
+          [newUser.id],
+          'Account Created',
+          `Your ${role} account has been created successfully${newUser.department ? ` for ${newUser.department}` : ''}.`,
+          'system'
+        );
       } catch (err: any) {
         results.failed++;
         results.errors.push(`Error creating ${userData.email}: ${err.message}`);
@@ -917,6 +1053,13 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
       });
     }
 
+    await notifyManyUsers(
+      [user.id],
+      'Account Updated',
+      `Your account details were updated${user.department ? ` for ${user.department}` : ''}.`,
+      'system'
+    );
+
     res.json({
       id: user.id,
       name: user.name,
@@ -955,6 +1098,14 @@ app.delete('/api/users/:id', authenticate, async (req: any, res) => {
 
     const result = await User.deleteOne({ id: req.params.id });
     if (result.deletedCount === 0) return res.status(404).json({ message: 'User not found' });
+
+    const adminIds = await getAdminIds();
+    await notifyManyUsers(
+      adminIds,
+      'User Deleted',
+      `User ${req.params.id} has been deleted from the system.`,
+      'system'
+    );
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -976,6 +1127,13 @@ app.post('/api/auth/change-password', authenticate, async (req: any, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
+
+    await notifyManyUsers(
+      [user.id],
+      'Password Changed',
+      'Your account password was changed successfully.',
+      'system'
+    );
 
     res.json({ message: 'Password changed successfully' });
   } catch (err) {

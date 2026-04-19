@@ -174,7 +174,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </button>
               <AnimatePresence>
                 {showNotifications && (
-                  <NotificationCenter onClose={() => setShowNotifications(false)} />
+                  <NotificationCenter
+                    onClose={() => setShowNotifications(false)}
+                    onNotificationsChanged={fetchUnreadCount}
+                  />
                 )}
               </AnimatePresence>
             </div>

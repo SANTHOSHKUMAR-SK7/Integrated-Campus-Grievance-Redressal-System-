@@ -17,16 +17,25 @@ interface Notification {
   link?: string;
 }
 
-const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const NotificationCenter: React.FC<{ onClose: () => void; onNotificationsChanged?: () => void }> = ({
+  onClose,
+  onNotificationsChanged,
+}) => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getActivityRoute = () => {
+    if (currentUser?.role === UserRole.STUDENT) return '/track';
+    if (currentUser?.role === UserRole.ADMIN) return '/manage';
+    return '/manage';
+  };
+
   const getFallbackRoute = (notification: Notification) => {
     if (notification.type === 'message' || notification.type === 'status_change') {
       if (currentUser?.role === UserRole.STUDENT) return '/track';
-      if (currentUser?.role === UserRole.ADMIN) return '/analytics';
+      if (currentUser?.role === UserRole.ADMIN) return '/manage';
       return '/manage';
     }
     return '/dashboard';
@@ -68,7 +77,8 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           'Authorization': `Bearer ${getAccessToken()}`
         }
       });
-      setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+      setNotifications((current) => current.map(n => n.id === id ? { ...n, isRead: true } : n));
+      onNotificationsChanged?.();
     } catch (error) {
       console.error('Failed to mark as read:', error);
     }
@@ -82,10 +92,18 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           'Authorization': `Bearer ${getAccessToken()}`
         }
       });
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications((current) => current.map(n => ({ ...n, isRead: true })));
+      onNotificationsChanged?.();
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }
+  };
+
+  const goTo = (target: string) => {
+    onClose();
+    requestAnimationFrame(() => {
+      navigate(target);
+    });
   };
 
   const getIcon = (type: string) => {
@@ -137,30 +155,51 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-4 hover:bg-slate-50 transition-colors cursor-pointer relative group ${!notification.isRead ? 'bg-indigo-50/30' : ''}`}
+                className={`p-4 transition-colors cursor-pointer relative group border-l-4 ${
+                  notification.isRead
+                    ? 'border-transparent bg-white hover:bg-slate-50/80'
+                    : 'border-indigo-500 bg-indigo-50/60 hover:bg-indigo-50'
+                }`}
                 onClick={() => {
-                  if (!notification.isRead) markAsRead(notification.id);
-                  onClose();
-                  navigate(notification.link || getFallbackRoute(notification));
+                  if (!notification.isRead) {
+                    void markAsRead(notification.id);
+                  }
+                  goTo(notification.link || getFallbackRoute(notification));
                 }}
               >
                 <div className="flex gap-3">
                   <div className="mt-1">{getIcon(notification.type)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={`text-sm font-bold truncate ${notification.isRead ? 'text-slate-700' : 'text-slate-900'}`}>
-                        {notification.title}
-                      </p>
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className={`text-sm font-bold truncate ${notification.isRead ? 'text-slate-600' : 'text-slate-900'}`}>
+                          {notification.title}
+                        </p>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                            notification.isRead
+                              ? 'bg-slate-100 text-slate-400'
+                              : 'bg-indigo-600 text-white'
+                          }`}
+                        >
+                          {notification.isRead ? 'Read' : 'Unread'}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] whitespace-nowrap ${notification.isRead ? 'text-slate-300' : 'text-slate-500'}`}>
                         {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    <p className={`text-xs mt-1 line-clamp-2 leading-relaxed ${notification.isRead ? 'text-slate-400' : 'text-slate-600'}`}>
                       {notification.message}
                     </p>
                   </div>
                   {!notification.isRead && (
                     <div className="w-2 h-2 bg-indigo-600 rounded-full mt-2 shrink-0" />
+                  )}
+                  {notification.isRead && (
+                    <div className="mt-1 shrink-0">
+                      <Check className="w-4 h-4 text-slate-300" />
+                    </div>
                   )}
                 </div>
               </div>
@@ -172,14 +211,7 @@ const NotificationCenter: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="p-3 bg-slate-50 text-center border-top border-slate-100">
         <button
           onClick={() => {
-            onClose();
-            if (currentUser?.role === UserRole.STUDENT) {
-              navigate('/track');
-            } else if (currentUser?.role === UserRole.ADMIN) {
-              navigate('/analytics');
-            } else {
-              navigate('/manage');
-            }
+            goTo(getActivityRoute());
           }}
           className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
         >
