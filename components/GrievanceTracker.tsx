@@ -17,6 +17,7 @@ const GrievanceTracker: React.FC = () => {
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
   const [showFilingOptions, setShowFilingOptions] = useState(false);
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatError, setChatError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -233,7 +234,18 @@ const GrievanceTracker: React.FC = () => {
 
                 <div className="lg:w-80 shrink-0 space-y-6">
                   <div className="bg-white rounded-3xl border border-slate-100 p-6 sticky top-0">
-                    <Timeline history={selectedGrievance.history || []} />
+                    <div className="space-y-5">
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Case Lifecycle Timeline</h4>
+                        <p className="text-[11px] text-slate-500 mt-2">Open the timeline in a popup for clearer case history review.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowTimelineModal(true)}
+                        className="w-full rounded-3xl bg-indigo-600 px-5 py-4 text-[11px] font-black uppercase tracking-[0.24em] text-white transition hover:bg-indigo-700"
+                      >
+                        View Timeline
+                      </button>
+                    </div>
                   </div>
                   <AttachmentViewer attachments={selectedGrievance.attachments as any} grievanceId={selectedGrievance.id} />
                 </div>
@@ -260,6 +272,32 @@ const GrievanceTracker: React.FC = () => {
               )}
             </div>
           </div>
+
+          {selectedGrievance && showTimelineModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-10 bg-indigo-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white rounded-[40px] w-full max-w-xl max-h-[calc(100vh-180px)] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="px-10 py-8 border-b border-slate-200">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-indigo-600">Case Lifecycle Timeline</p>
+                      <h2 id="timeline-modal-title" className="mt-2 text-2xl font-black text-slate-900">Detailed Timeline</h2>
+                      <p className="mt-2 text-sm text-slate-500">Track the full case history with actions, transfers, and status updates.</p>
+                    </div>
+                    <button
+                      onClick={() => setShowTimelineModal(false)}
+                      className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      aria-label="Close timeline"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-[calc(100vh-300px)] overflow-y-auto p-10">
+                  <Timeline history={selectedGrievance.history || []} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
