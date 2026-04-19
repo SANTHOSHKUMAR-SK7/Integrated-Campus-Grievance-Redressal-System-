@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getGrievances, getCurrentUser, sendMessage } from '../store';
+import { getGrievances, getGrievanceById, getCurrentUser, sendMessage } from '../store';
 import { Grievance, Status, Department, ChatType } from '../types';
 import { ICONS, COLORS } from '../constants';
 import Timeline from './Timeline';
@@ -25,27 +25,32 @@ const GrievanceTracker: React.FC = () => {
     const all = await getGrievances();
     setGrievances(all);
     if (selectedGrievance) {
-      const updated = all.find(g => g.id === selectedGrievance.id);
+      const updated = await getGrievanceById(selectedGrievance.id);
       if (updated) setSelectedGrievance(updated);
     }
   };
 
   useEffect(() => {
     refreshData();
-    const interval = setInterval(refreshData, 5000);
-    return () => clearInterval(interval);
   }, [selectedGrievance?.id]);
 
   useEffect(() => {
     const grievanceId = location.state?.grievanceId || new URLSearchParams(location.search).get('grievanceId');
-    if (!grievanceId || grievances.length === 0) return;
+    if (!grievanceId) return;
 
-    const grievanceFromState = grievances.find((g) => g.id === grievanceId);
-    if (grievanceFromState) {
-      setSelectedGrievance(grievanceFromState);
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [grievances, location.pathname, location.search, location.state, navigate]);
+    let isMounted = true;
+    void (async () => {
+      const grievanceFromState = await getGrievanceById(grievanceId);
+      if (isMounted && grievanceFromState) {
+        setSelectedGrievance(grievanceFromState);
+        navigate(location.pathname, { replace: true, state: null });
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

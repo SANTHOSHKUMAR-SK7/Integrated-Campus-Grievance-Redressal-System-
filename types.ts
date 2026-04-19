@@ -30,9 +30,13 @@ export enum UserRole {
 }
 
 export interface Attachment {
+  id?: string;
   name: string;
-  type: string;
-  data: string; // base64
+  type?: string;
+  data?: string; // base64 upload payload
+  attachmentType?: string;
+  attachmentData?: string;
+  size?: number;
 }
 
 export enum ChatType {

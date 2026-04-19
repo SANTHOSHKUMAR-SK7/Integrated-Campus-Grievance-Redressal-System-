@@ -3,26 +3,50 @@
  * Handles downloading and viewing of grievance attachments
  */
 
+import { getAccessToken } from '../store';
+
 export interface Attachment {
+  id?: string;
   name: string;
   attachmentType: string;
-  attachmentData: string;
+  attachmentData?: string;
+  size?: number;
 }
+
+const getAttachmentData = async (attachment: Attachment, grievanceId: string): Promise<Attachment> => {
+  if (attachment.attachmentData) {
+    return attachment;
+  }
+
+  if (!attachment.id) {
+    throw new Error('Attachment id not found');
+  }
+
+  const response = await fetch(`/api/grievances/${grievanceId}/attachments/${attachment.id}`, {
+    headers: {
+      'Authorization': `Bearer ${getAccessToken()}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to load attachment');
+  }
+
+  return await response.json();
+};
 
 /**
  * Download attachment as a file
  * @param attachment - The attachment object containing data and metadata
  * @param grievanceId - The grievance ID (for organizing downloads)
  */
-export const downloadAttachment = (attachment: Attachment, grievanceId: string) => {
+export const downloadAttachment = async (attachment: Attachment, grievanceId: string) => {
   try {
-    if (!attachment.attachmentData) {
-      console.error('No attachment data found');
-      return;
-    }
+    const resolvedAttachment = await getAttachmentData(attachment, grievanceId);
 
     // Handle both data:image/... format and raw base64
-    let base64Data = attachment.attachmentData;
+    let base64Data = resolvedAttachment.attachmentData || '';
     if (base64Data.includes(',')) {
       base64Data = base64Data.split(',')[1];
     }
@@ -35,11 +59,11 @@ export const downloadAttachment = (attachment: Attachment, grievanceId: string) 
     }
 
     // Create blob and download
-    const blob = new Blob([bytes], { type: attachment.attachmentType });
+    const blob = new Blob([bytes], { type: resolvedAttachment.attachmentType });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = attachment.name || `attachment-${Date.now()}`;
+    link.download = resolvedAttachment.name || `attachment-${Date.now()}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -54,15 +78,12 @@ export const downloadAttachment = (attachment: Attachment, grievanceId: string) 
  * Open attachment in a new tab for viewing
  * @param attachment - The attachment object
  */
-export const viewAttachment = (attachment: Attachment) => {
+export const viewAttachment = async (attachment: Attachment, grievanceId: string) => {
   try {
-    if (!attachment.attachmentData) {
-      console.error('No attachment data found');
-      return;
-    }
+    const resolvedAttachment = await getAttachmentData(attachment, grievanceId);
 
     // Convert base64 to blob for better browser support
-    let base64Data = attachment.attachmentData;
+    let base64Data = resolvedAttachment.attachmentData || '';
     
     // If it's already a data URL, extract just the base64 part
     if (base64Data.includes(',')) {
@@ -77,7 +98,7 @@ export const viewAttachment = (attachment: Attachment) => {
     }
 
     // Create blob from binary data
-    const blob = new Blob([bytes], { type: attachment.attachmentType });
+    const blob = new Blob([bytes], { type: resolvedAttachment.attachmentType });
     const blobUrl = window.URL.createObjectURL(blob);
     
     // Open in new window/tab
@@ -108,9 +129,10 @@ export const getFileIcon = (mimeType: string): string => {
 /**
  * Format file size for display
  */
-export const formatFileSize = (base64String: string): string => {
-  // Rough estimation: base64 is ~33% larger than binary
-  const bytes = Math.round((base64String.length * 3) / 4);
+export const formatFileSize = (base64String: string, size?: number): string => {
+  const bytes = typeof size === 'number' && size > 0
+    ? size
+    : Math.round((base64String.length * 3) / 4);
   
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

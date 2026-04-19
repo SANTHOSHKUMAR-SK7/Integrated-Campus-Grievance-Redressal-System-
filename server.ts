@@ -64,6 +64,28 @@ const NotificationSchema = new mongoose.Schema({
 
 const Notification = mongoose.model('Notification', NotificationSchema);
 
+async function cleanupOldNotifications(days: number = 30) {
+  try {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const result = await Notification.deleteMany({ timestamp: { $lt: cutoff } });
+    console.log(`Notification cleanup completed. Removed ${result.deletedCount ?? 0} old notifications.`);
+  } catch (error) {
+    console.error('Notification cleanup failure:', error);
+  }
+}
+
+const AttachmentSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  grievanceId: { type: String, required: true, index: true },
+  name: { type: String, required: true },
+  attachmentType: { type: String, required: true },
+  attachmentData: { type: String, required: true },
+  size: { type: Number, required: true },
+  timestamp: { type: Number, default: Date.now }
+});
+
+const AttachmentRecord = mongoose.model('AttachmentRecord', AttachmentSchema);
+
 const GrievanceSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
@@ -86,9 +108,10 @@ const GrievanceSchema = new mongoose.Schema({
   }],
   remarks: [String],
   attachments: [{
+    id: { type: String },
     name: { type: String },
     attachmentType: { type: String },
-    attachmentData: { type: String }
+    size: { type: Number }
   }],
   notificationsSent: [{
     type: { type: String },
@@ -289,7 +312,7 @@ async function syncDepartmentBacklogForStaffById(userId: string) {
   return autoAssignExistingGrievancesToStaff({
     id: staffUser.id,
     name: staffUser.name,
-    department: staffUser.department
+    department: staffUser.department ?? undefined
   });
 }
 
@@ -364,6 +387,26 @@ const isStrongPassword = (password: string) => {
   return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
 };
 
+const createAttachmentId = () => `ATT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+const getGrievanceListProjection = () => ({
+  id: 1,
+  title: 1,
+  timestamp: 1,
+  department: 1,
+  severity: 1,
+  status: 1,
+  isAnonymous: 1,
+  studentId: 1,
+  assignedToId: 1,
+  lastStatusChange: 1,
+  summary: 1,
+  sentiment: 1,
+  attachments: 1,
+  conversation: { $slice: -10 },
+  history: { $slice: -10 },
+});
+
 // --- API Routes ---
 
 // Auth
@@ -419,7 +462,7 @@ app.get('/api/grievances', authenticate, async (req: any, res) => {
       await syncDepartmentBacklogForStaffById(req.user.id);
       query = { $or: [{ assignedToId: req.user.id }, { department: req.user.department }] };
     }
-    const grievances = await Grievance.find(query).sort({ timestamp: -1 });
+    const grievances = await Grievance.find(query, getGrievanceListProjection()).sort({ timestamp: -1 });
     res.json(grievances);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -458,9 +501,10 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     if (!description) {
       return res.status(400).json({ message: 'Description is required' });
     }
+    const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
 
     // Validate and process attachments
-    let attachments = [];
+    let attachmentMetadata = [];
     if (Array.isArray(req.body.attachments)) {
       for (let i = 0; i < req.body.attachments.length; i++) {
         const att = req.body.attachments[i];
@@ -470,10 +514,23 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
             console.warn(`Attachment ${i} exceeds size limit: ${att.data.length} bytes`);
             continue;
           }
-          attachments.push({
+          const attachmentId = createAttachmentId();
+          const size = Math.round((att.data.length * 3) / 4);
+          await new AttachmentRecord({
+            id: attachmentId,
+            grievanceId,
             name: String(att.name || `attachment-${i}`),
             attachmentType: String(att.type || 'application/octet-stream'),
-            attachmentData: att.data
+            attachmentData: att.data,
+            size,
+            timestamp: Date.now()
+          }).save();
+
+          attachmentMetadata.push({
+            id: attachmentId,
+            name: String(att.name || `attachment-${i}`),
+            attachmentType: String(att.type || 'application/octet-stream'),
+            size
           });
         }
       }
@@ -487,7 +544,6 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       : 'pending';
     const assignedStaff = await User.findOne({ role: 'Staff', department }).select('id');
     const fallbackAdminId = await getFallbackAdminId();
-    const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
     
     const grievanceData = {
       id: grievanceId,
@@ -502,7 +558,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       assignedToId: req.body.assignedToId || assignedStaff?.id || fallbackAdminId,
       timestamp: Date.now(),
       lastStatusChange: Date.now(),
-      attachments: attachments,
+      attachments: attachmentMetadata,
       remarks: [],
       notificationsSent: [],
       conversation: [],
@@ -514,7 +570,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       }]
     };
 
-    console.log('Normalized Grievance Data (without attachments):', JSON.stringify({ ...grievanceData, attachments: grievanceData.attachments?.map((a: any) => ({ name: a.name, type: a.type, size: a.data?.length || 0 })) }, null, 2));
+    console.log('Normalized Grievance Data (with attachment metadata):', JSON.stringify(grievanceData, null, 2));
     
     const grievance = new Grievance(grievanceData);
     
@@ -604,7 +660,14 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
       const updateMessage = `Grievance #${grievance.id} was reassigned by ${actorName}${departmentChanged ? ` from ${previousDepartment} to ${grievance.department}` : ''}${currentHandler ? ` and is now handled by ${currentHandler.name}` : ''}.`;
 
       await notifyManyUsers(
-        [grievance.studentId, previousAssignedToId, grievance.assignedToId, ...previousDepartmentStaffIds, ...currentDepartmentStaffIds, ...adminIds],
+        [
+          grievance.studentId,
+          previousAssignedToId,
+          grievance.assignedToId,
+          ...previousDepartmentStaffIds,
+          ...currentDepartmentStaffIds,
+          ...adminIds
+        ].filter((id): id is string => Boolean(id)),
         'Grievance Reassigned',
         updateMessage,
         'system',
@@ -614,6 +677,29 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
     }
 
     res.json(grievance);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/api/grievances/:id/attachments/:attachmentId', authenticate, async (req: any, res) => {
+  try {
+    const grievance = await Grievance.findOne({ id: req.params.id });
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    if (req.user.role === 'Student' && grievance.studentId !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id && grievance.department !== req.user.department) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const attachment = await AttachmentRecord.findOne({
+      grievanceId: req.params.id,
+      id: req.params.attachmentId
+    }).select('id grievanceId name attachmentType attachmentData size');
+
+    if (!attachment) return res.status(404).json({ message: 'Attachment not found' });
+    res.json(attachment);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -701,7 +787,12 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
 
         if (messageType === 'student-staff') {
             await notifyManyUsers(
-                [grievance.studentId, grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+                [
+                  grievance.studentId,
+                  grievance.assignedToId,
+                  ...departmentStaffIds,
+                  ...adminIds
+                ].filter((id): id is string => Boolean(id)),
                 'Grievance Conversation Updated',
                 `${user.name} added a new message on grievance #${grievance.id}.`,
                 'message',
@@ -710,7 +801,11 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
             );
         } else {
             await notifyManyUsers(
-                [grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+                [
+                  grievance.assignedToId,
+                  ...departmentStaffIds,
+                  ...adminIds
+                ].filter((id): id is string => Boolean(id)),
                 'Internal Grievance Note Added',
                 `${user.name} added an internal note on grievance #${grievance.id}.`,
                 'system',
@@ -758,7 +853,12 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
     const adminIds = await getAdminIds();
     const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
     await notifyManyUsers(
-      [grievance.studentId, grievance.assignedToId, ...departmentStaffIds, ...adminIds],
+      [
+        grievance.studentId,
+        grievance.assignedToId,
+        ...departmentStaffIds,
+        ...adminIds
+      ].filter((id): id is string => Boolean(id)),
       'Grievance Status Updated',
       `Grievance #${grievance.id} status is now ${status}${remark ? `: ${remark}` : ''}.`,
       'status_change',
@@ -897,7 +997,7 @@ app.post('/api/users', authenticate, async (req: any, res) => {
       reassignmentSummary = await autoAssignExistingGrievancesToStaff({
         id: newUser.id,
         name: newUser.name,
-        department: newUser.department
+        department: newUser.department ?? undefined
       });
     }
 
@@ -968,13 +1068,13 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
           const reassignmentSummary = await autoAssignExistingGrievancesToStaff({
             id: newUser.id,
             name: newUser.name,
-            department: newUser.department
+            department: newUser.department ?? undefined
           });
           if (reassignmentSummary.reassignedCount > 0) {
             results.reassigned.push({
               staffId: newUser.id,
               staffName: newUser.name,
-              department: reassignmentSummary.department,
+              department: reassignmentSummary.department || '',
               grievanceIds: reassignmentSummary.grievanceIds || []
             });
           }
@@ -1049,7 +1149,7 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
       reassignmentSummary = await autoAssignExistingGrievancesToStaff({
         id: user.id,
         name: user.name,
-        department: user.department
+        department: user.department ?? undefined
       });
     }
 
@@ -1065,7 +1165,7 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
       name: user.name,
       role: user.role,
       email: user.email,
-      department: user.department,
+      department: user.department ?? undefined,
       reassignmentSummary
     });
   } catch (err) {
@@ -1266,6 +1366,8 @@ async function startServer() {
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB');
     await seed();
+    await cleanupOldNotifications(30);
+    setInterval(() => cleanupOldNotifications(30), 24 * 60 * 60 * 1000);
   } catch (error) {
     console.error('Failed to connect to MongoDB during startup:', error);
   }

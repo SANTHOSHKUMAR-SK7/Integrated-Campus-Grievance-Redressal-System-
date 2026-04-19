@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getAccessToken, getCurrentUser, logout, subscribeToSession } from '../store';
 import { UserRole } from '../types';
@@ -15,7 +15,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
 
@@ -42,24 +42,24 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       }
       console.error('Failed to fetch unread count:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const cleanup = subscribeToSession(() => {
       setUser(getCurrentUser());
     });
-    
+
     if (currentUser) {
       fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30s
-      return () => {
-        cleanup();
-        clearInterval(interval);
-      };
     }
-    
+
     return cleanup;
-  }, [currentUser]);
+  }, [currentUser, fetchUnreadCount]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    fetchUnreadCount();
+  }, [showNotifications, fetchUnreadCount]);
 
   useEffect(() => {
     if (!showNotifications) return;

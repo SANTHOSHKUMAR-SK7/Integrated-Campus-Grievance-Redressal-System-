@@ -77,6 +77,16 @@ export const getGrievances = async (): Promise<Grievance[]> => {
   }
 };
 
+export const getGrievanceById = async (id: string): Promise<Grievance | null> => {
+  try {
+    const response = await endpoints.grievances.getById(id);
+    return response.data || null;
+  } catch (error) {
+    console.error('Failed to fetch grievance:', error);
+    return null;
+  }
+};
+
 export const saveGrievance = async (grievance: Partial<Grievance>) => {
   try {
     const response = await endpoints.grievances.submit(grievance);
@@ -145,8 +155,7 @@ export const transferGrievance = async (grievanceId: string, toDept: Department,
       throw new Error('You must be signed in to transfer a grievance.');
     }
 
-    const grievances = await getGrievances();
-    const g = grievances.find(x => x.id === grievanceId);
+    const g = await getGrievanceById(grievanceId);
     if (!g) {
       throw new Error('Grievance not found.');
     }

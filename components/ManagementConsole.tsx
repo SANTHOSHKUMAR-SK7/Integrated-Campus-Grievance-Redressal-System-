@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getGrievances, updateGrievance, getCurrentUser, sendMessage, getUserById, getAllStaff, transferGrievance } from '../store';
+import { getGrievances, getGrievanceById, updateGrievance, getCurrentUser, sendMessage, getUserById, getAllStaff, transferGrievance } from '../store';
 import { Grievance, Status, UserRole, Department, User, ChatType } from '../types';
 import { COLORS } from '../constants';
 import { getGrievanceSummary } from '../services/geminiService';
@@ -51,7 +51,7 @@ const ManagementConsole: React.FC = () => {
       return;
     }
 
-    const g = all.find(x => x.id === id);
+    const g = await getGrievanceById(id);
     if (!g) {
       setGrievance(null);
       setStudent(null);
@@ -77,8 +77,6 @@ const ManagementConsole: React.FC = () => {
   useEffect(() => {
     refreshGrievance();
     getAllStaff().then(setStaffList);
-    const interval = setInterval(refreshGrievance, 5000);
-    return () => clearInterval(interval);
   }, [location.pathname, location.search, location.state]);
 
   useEffect(() => {
