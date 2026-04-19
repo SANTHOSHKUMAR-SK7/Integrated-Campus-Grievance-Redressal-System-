@@ -7,6 +7,7 @@ import { COLORS } from '../constants';
 const Dashboard: React.FC = () => {
   const [user, setUser] = useState(getCurrentUser());
   const [grievances, setGrievances] = useState<Grievance[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
   const navigate = useNavigate();
 
   const refresh = async () => {
@@ -27,6 +28,7 @@ const Dashboard: React.FC = () => {
 
   if (user.role === UserRole.STUDENT) {
     const mine = grievances.filter((g) => g.studentId === user.id);
+    const filteredMine = statusFilter === 'all' ? mine : mine.filter((g) => g.status === statusFilter);
     const stats = {
       total: mine.length,
       pending: mine.filter((g) => g.status === Status.PENDING).length,
@@ -66,13 +68,21 @@ const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="font-black text-slate-900 tracking-tight">Recent Activity</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <h3 className="font-black text-slate-900 tracking-tight">Recent Activity</h3>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Showing {filteredMine.length} of {mine.length}
+                </span>
+              </div>
+              <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+            </div>
             <Link to="/track" className="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline">
               Full Audit &rarr;
             </Link>
           </div>
           <div className="divide-y divide-slate-100">
-            {mine.slice(0, 3).map((g) => (
+            {filteredMine.slice(0, 3).map((g) => (
               <div
                 key={g.id}
                 className="px-8 py-6 hover:bg-slate-50 transition-all cursor-pointer"
@@ -101,7 +111,11 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             ))}
-            {mine.length === 0 && <div className="p-20 text-center text-slate-400 text-sm font-medium italic">No active cases found.</div>}
+            {filteredMine.length === 0 && (
+              <div className="p-20 text-center text-slate-400 text-sm font-medium italic">
+                No cases found for the selected filter.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -112,6 +126,7 @@ const Dashboard: React.FC = () => {
     if (user.role === UserRole.ADMIN) return true;
     return g.assignedToId === user.id || g.department === user.department;
   });
+  const filteredWorklist = statusFilter === 'all' ? worklist : worklist.filter((g) => g.status === statusFilter);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -139,8 +154,14 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-10 py-8 border-b border-slate-100">
-          <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Active Worklist</h3>
+        <div className="px-10 py-8 border-b border-slate-100 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Active Worklist</h3>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Showing {filteredWorklist.length} of {worklist.length}
+            </span>
+          </div>
+          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -155,7 +176,7 @@ const Dashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {worklist.map((g) => (
+              {filteredWorklist.map((g) => (
                 <tr key={g.id} className="hover:bg-indigo-50/30 transition-all cursor-pointer group" onClick={() => navigate('/manage', { state: { grievanceId: g.id } })}>
                   <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
                   <td className="px-10 py-6">
@@ -188,6 +209,13 @@ const Dashboard: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {filteredWorklist.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-10 py-16 text-center text-slate-400 text-sm font-medium italic">
+                    No grievances found for the selected filter.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -225,6 +253,42 @@ const ActionCard = ({ title, desc, btnText, onClick, variant = 'primary' }) => (
     >
       {btnText}
     </button>
+  </div>
+);
+
+const FILTER_OPTIONS: Array<{ label: string; value: 'all' | Status }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Pending', value: Status.PENDING },
+  { label: 'In Progress', value: Status.IN_PROGRESS },
+  { label: 'Resolved', value: Status.RESOLVED },
+  { label: 'Closed', value: Status.CLOSED },
+];
+
+const StatusFilter = ({
+  value,
+  onChange,
+}: {
+  value: 'all' | Status;
+  onChange: (value: 'all' | Status) => void;
+}) => (
+  <div className="flex flex-wrap gap-2">
+    {FILTER_OPTIONS.map((option) => {
+      const isActive = value === option.value;
+      return (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`rounded-2xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+            isActive
+              ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          }`}
+        >
+          {option.label}
+        </button>
+      );
+    })}
   </div>
 );
 
