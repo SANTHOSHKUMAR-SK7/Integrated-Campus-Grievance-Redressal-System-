@@ -189,13 +189,8 @@ async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name
     return { reassignedCount: 0, department };
   }
 
-  const staffInDepartment = await User.countDocuments({ role: 'Staff', department });
-  if (staffInDepartment !== 1) {
-    return { reassignedCount: 0, department };
-  }
-
   const fallbackAdminId = await getFallbackAdminId();
-  const eligibleAssignmentIds = [null, '', fallbackAdminId].filter(Boolean);
+  const eligibleAssignmentIds = [fallbackAdminId].filter(Boolean);
   const grievances = await Grievance.find({
     department,
     $or: [
@@ -238,6 +233,19 @@ async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name
   }
 
   return { reassignedCount: grievanceIds.length, department, grievanceIds };
+}
+
+async function syncDepartmentBacklogForStaffById(userId: string) {
+  const staffUser = await User.findOne({ id: userId, role: 'Staff' }).select('id name department');
+  if (!staffUser) {
+    return { reassignedCount: 0, department: '' };
+  }
+
+  return autoAssignExistingGrievancesToStaff({
+    id: staffUser.id,
+    name: staffUser.name,
+    department: staffUser.department
+  });
 }
 
 // --- Auth Middleware ---
@@ -333,6 +341,10 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    if (user.role === 'Staff') {
+      await syncDepartmentBacklogForStaffById(user.id);
+    }
+
     const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
     console.log(`Login successful: ${email} (${user.role})`);
     res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, department: user.department } });
@@ -359,6 +371,7 @@ app.get('/api/grievances', authenticate, async (req: any, res) => {
     if (req.user.role === 'Student') {
       query = { studentId: req.user.id };
     } else if (req.user.role === 'Staff') {
+      await syncDepartmentBacklogForStaffById(req.user.id);
       query = { $or: [{ assignedToId: req.user.id }, { department: req.user.department }] };
     }
     const grievances = await Grievance.find(query).sort({ timestamp: -1 });
@@ -370,6 +383,10 @@ app.get('/api/grievances', authenticate, async (req: any, res) => {
 
 app.get('/api/grievances/:id', authenticate, async (req: any, res) => {
   try {
+    if (req.user.role === 'Staff') {
+      await syncDepartmentBacklogForStaffById(req.user.id);
+    }
+
     const grievance = await Grievance.findOne({ id: req.params.id });
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
 
@@ -730,7 +747,8 @@ app.get('/api/users', authenticate, async (req: any, res) => {
 app.post('/api/users', authenticate, async (req: any, res) => {
   try {
     if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
-    const { id, name, email, password, role, department } = req.body;
+    const { id, name, email, password, role } = req.body;
+    const normalizedDepartment = req.body.department ? normalizeDepartment(req.body.department) : undefined;
 
     if (!isStrongPassword(password)) {
       return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
@@ -748,7 +766,7 @@ app.post('/api/users', authenticate, async (req: any, res) => {
       email,
       password: hashedPassword,
       role,
-      department
+      department: normalizedDepartment
     });
 
     await newUser.save();
@@ -789,7 +807,8 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
 
     for (const userData of users) {
       try {
-        const { id, name, email, role, department } = userData;
+        const { id, name, email, role } = userData;
+        const normalizedDepartment = userData.department ? normalizeDepartment(userData.department) : undefined;
         
         if (!id || !name || !email || !role) {
           results.failed++;
@@ -810,7 +829,7 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
           email,
           password: defaultPassword,
           role,
-          department
+          department: normalizedDepartment
         });
 
         await newUser.save();
@@ -878,6 +897,10 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
       }
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(String(updates.password), salt);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'department')) {
+      updates.department = updates.department ? normalizeDepartment(String(updates.department)) : undefined;
     }
 
     Object.assign(user, updates);

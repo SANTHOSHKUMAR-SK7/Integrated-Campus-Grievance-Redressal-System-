@@ -213,7 +213,7 @@ const GrievanceTracker: React.FC = () => {
                       <div key={msg.id} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
                         <div className="max-w-[90%] sm:max-w-[85%]">
                           <p className={`text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 px-1 ${msg.senderId === user.id ? 'text-right' : 'text-left'}`}>
-                            {msg.senderId === user.id ? 'You' : 'DAIT Staff Authority'}
+                            {msg.senderId === user.id ? 'You' : (msg.senderName || 'DAIT Staff Authority')}
                           </p>
                           <div className={`px-5 py-3 sm:px-6 sm:py-4 rounded-2xl sm:rounded-3xl text-sm font-medium shadow-sm border ${msg.senderId === user.id ? 'bg-indigo-600 text-white border-indigo-500 rounded-tr-none' : 'bg-white text-slate-700 border-slate-200 rounded-tl-none'
                             }`}>
