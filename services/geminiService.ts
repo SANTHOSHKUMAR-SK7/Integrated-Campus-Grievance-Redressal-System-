@@ -201,7 +201,29 @@ export const getStaffAssistance = async (grievance: any) => {
   }
 };
 
+const buildFallbackGrievanceSummary = (grievanceData?: any) => {
+  const title = String(grievanceData?.title || 'General grievance').trim();
+  const description = String(grievanceData?.description || '').trim();
+  const department = String(grievanceData?.department || 'General').trim();
+  const status = String(grievanceData?.status || 'pending').trim();
+  const summaryText = [title, description].filter(Boolean).join('. ').trim();
+
+  const actionPoints: string[] = [];
+  if (department) actionPoints.push(`Coordinate with the ${department} team for verification and action.`);
+  if (description) actionPoints.push('Review the complaint details and validate the issue location/scope.');
+  if (status && status !== 'resolved' && status !== 'closed') {
+    actionPoints.push('Provide a status update to the student after the next concrete action.');
+  }
+
+  return {
+    summary: summaryText || 'No grievance details are available for AI summarization.',
+    actionPoints: actionPoints.length > 0 ? actionPoints : ['Review this grievance manually and update the student with the next action.'],
+    toneRecommendation: 'Use a clear, professional, and empathetic tone while explaining next steps.'
+  };
+};
+
 export const getGrievanceSummary = async (id: string, grievanceData?: any) => {
+  const fallback = buildFallbackGrievanceSummary(grievanceData);
   try {
     const ai = getAI();
 
@@ -237,9 +259,21 @@ export const getGrievanceSummary = async (id: string, grievanceData?: any) => {
       }
     });
 
-    return JSON.parse(result.text || "{}");
+    const rawText = String(result.text || '').trim();
+    if (!rawText) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(rawText);
+    return {
+      summary: String(parsed.summary || fallback.summary),
+      actionPoints: Array.isArray(parsed.actionPoints) && parsed.actionPoints.length > 0
+        ? parsed.actionPoints.map((point: unknown) => String(point))
+        : fallback.actionPoints,
+      toneRecommendation: String(parsed.toneRecommendation || fallback.toneRecommendation)
+    };
   } catch (error) {
     console.error('AI Summary Error:', error);
+    return fallback;
   }
-  return null;
 };

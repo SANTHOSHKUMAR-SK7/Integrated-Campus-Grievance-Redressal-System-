@@ -1,11 +1,13 @@
 
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Grievance, User } from '../types';
 
 export const generateGrievanceReport = (grievance: Grievance, student: User | null, staff: User | null) => {
-  const doc = new jsPDF() as any;
+  const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let currentY = 55;
 
   // Header
   doc.setFillColor(79, 70, 229); // Indigo-600
@@ -25,7 +27,7 @@ export const generateGrievanceReport = (grievance: Grievance, student: User | nu
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('1. Case Overview', 20, 55);
+  doc.text('1. Case Overview', 20, currentY);
   
   const overviewData = [
     ['Case ID', grievance.id],
@@ -36,19 +38,20 @@ export const generateGrievanceReport = (grievance: Grievance, student: User | nu
     ['Submission Date', new Date(grievance.timestamp).toLocaleDateString()]
   ];
 
-  doc.autoTable({
-    startY: 60,
+  autoTable(doc, {
+    startY: currentY + 5,
     head: [],
     body: overviewData,
     theme: 'plain',
     styles: { fontSize: 10, cellPadding: 2 },
-    columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
   });
+  currentY = (doc as any).lastAutoTable.finalY + 15;
 
   // Parties Involved
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('2. Involved Parties', 20, doc.lastAutoTable.finalY + 15);
+  doc.text('2. Involved Parties', 20, currentY);
 
   const partiesData = [
     ['Role', 'Name', 'ID', 'Department'],
@@ -56,29 +59,37 @@ export const generateGrievanceReport = (grievance: Grievance, student: User | nu
     ['Assigned Staff', staff?.name || 'Unassigned', staff?.id || 'N/A', staff?.department || 'N/A']
   ];
 
-  doc.autoTable({
-    startY: doc.lastAutoTable.finalY + 20,
+  autoTable(doc, {
+    startY: currentY + 5,
     head: [partiesData[0]],
     body: partiesData.slice(1),
     theme: 'grid',
     headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold' },
     styles: { fontSize: 10 }
   });
+  currentY = (doc as any).lastAutoTable.finalY + 15;
 
   // Description
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('3. Grievance Description', 20, doc.lastAutoTable.finalY + 15);
+  doc.text('3. Grievance Description', 20, currentY);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const splitDescription = doc.splitTextToSize(grievance.description, pageWidth - 40);
-  doc.text(splitDescription, 20, doc.lastAutoTable.finalY + 22);
+  const descriptionStartY = currentY + 7;
+  doc.text(splitDescription, 20, descriptionStartY);
+  currentY = descriptionStartY + splitDescription.length * 5 + 10;
+
+  if (currentY > pageHeight - 80) {
+    doc.addPage();
+    currentY = 25;
+  }
 
   // Lifecycle / History
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('4. Resolution Lifecycle', 20, doc.lastAutoTable.finalY + splitDescription.length * 5 + 25);
+  doc.text('4. Resolution Lifecycle', 20, currentY);
 
   const historyData = grievance.history.map(h => [
     new Date(h.timestamp).toLocaleString(),
@@ -86,17 +97,17 @@ export const generateGrievanceReport = (grievance: Grievance, student: User | nu
     h.remark || 'N/A'
   ]);
 
-  doc.autoTable({
-    startY: doc.lastAutoTable.finalY + splitDescription.length * 5 + 30,
+  autoTable(doc, {
+    startY: currentY + 5,
     head: [['Timestamp', 'Status', 'Action/Remark']],
-    body: historyData,
+    body: historyData.length > 0 ? historyData : [['N/A', 'N/A', 'No lifecycle history available']],
     theme: 'striped',
     headStyles: { fillColor: [79, 70, 229] },
     styles: { fontSize: 9 }
   });
 
   // Footer
-  const pageCount = doc.internal.getNumberOfPages();
+  const pageCount = (doc as any).getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);

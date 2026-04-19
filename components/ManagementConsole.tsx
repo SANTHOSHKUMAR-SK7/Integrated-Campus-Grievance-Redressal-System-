@@ -32,6 +32,7 @@ const ManagementConsole: React.FC = () => {
   const [transferStaffId, setTransferStaffId] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const [transferError, setTransferError] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
   const [showSolveModal, setShowSolveModal] = useState(false);
   const [solveDescription, setSolveDescription] = useState('');
   const [activeChatTab, setActiveChatTab] = useState<ChatType>(ChatType.STUDENT_STAFF);
@@ -85,12 +86,22 @@ const ManagementConsole: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [grievance?.conversation]);
 
+  useEffect(() => {
+    setAiSummary(null);
+    setAiResponse('');
+    setIsSummaryLoading(false);
+    setIsAiLoading(false);
+  }, [grievance?.id]);
+
   const handleFetchSummary = async () => {
     if (!grievance) return;
     setIsSummaryLoading(true);
-    const summary = await getGrievanceSummary(grievance.id, grievance);
-    setAiSummary(summary);
-    setIsSummaryLoading(false);
+    try {
+      const summary = await getGrievanceSummary(grievance.id, grievance);
+      setAiSummary(summary);
+    } finally {
+      setIsSummaryLoading(false);
+    }
   };
 
   const handleDownloadReport = () => {
@@ -152,17 +163,44 @@ const ManagementConsole: React.FC = () => {
   };
 
   const handleTransfer = async () => {
-    if (!grievance || !transferDept || !transferStaffId || !transferReason) return;
+    if (!grievance) return;
+
+    if (!transferDept) {
+      setTransferError('Please choose the target department.');
+      return;
+    }
+
+    if (!transferStaffId) {
+      setTransferError('Please choose the staff member who should receive this grievance.');
+      return;
+    }
+
+    if (!transferReason.trim()) {
+      setTransferError('Please enter the reason for this transfer.');
+      return;
+    }
+
+    if (transferStaffId === grievance.assignedToId) {
+      setTransferError('This grievance is already assigned to the selected staff member.');
+      return;
+    }
+
     try {
+      setIsTransferring(true);
       const res = await transferGrievance(grievance.id, transferDept as Department, transferStaffId, transferReason);
       setGrievance(res);
       setTransferError('');
       setShowTransfer(false);
+      setTransferDept('');
+      setTransferStaffId('');
+      setTransferReason('');
       if (currentUser?.role === UserRole.STAFF && res.assignedToId !== currentUser.id) {
         navigate('/dashboard');
       }
     } catch (error: any) {
       setTransferError(error?.message || 'Unable to transfer grievance right now.');
+    } finally {
+      setIsTransferring(false);
     }
   };
 
@@ -216,6 +254,12 @@ const ManagementConsole: React.FC = () => {
   const internalRecipients = staffList.filter((staffMember) => {
     if (staffMember.id === currentUser.id) return false;
     return staffMember.id === grievance.assignedToId || staffMember.department === grievance.department;
+  });
+
+  const transferCandidates = staffList.filter((staffMember) => {
+    if (!transferDept) return false;
+    if (staffMember.department !== transferDept) return false;
+    return staffMember.id !== grievance.assignedToId;
   });
 
   return (
@@ -553,19 +597,37 @@ const ManagementConsole: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Target Department</label>
-                  <select value={transferDept} onChange={e => { setTransferDept(e.target.value as Department); if (transferError) setTransferError(''); }} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
+                  <select
+                    value={transferDept}
+                    onChange={e => {
+                      setTransferDept(e.target.value as Department);
+                      setTransferStaffId('');
+                      if (transferError) setTransferError('');
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold"
+                  >
                     <option value="">Select Domain</option>
                     {Object.values(Department).map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Staff Member</label>
-                  <select value={transferStaffId} onChange={e => { setTransferStaffId(e.target.value); if (transferError) setTransferError(''); }} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold">
+                  <select
+                    value={transferStaffId}
+                    onChange={e => { setTransferStaffId(e.target.value); if (transferError) setTransferError(''); }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold"
+                    disabled={!transferDept || transferCandidates.length === 0}
+                  >
                     <option value="">Select Individual</option>
-                    {staffList.filter(s => !transferDept || s.department === transferDept).map(s => (
+                    {transferCandidates.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
+                  {transferDept && transferCandidates.length === 0 && (
+                    <p className="text-[11px] font-bold text-amber-600">
+                      No other staff member is available in this department.
+                    </p>
+                  )}
                 </div>
               </div>
               <textarea value={transferReason} onChange={e => { setTransferReason(e.target.value); if (transferError) setTransferError(''); }} placeholder="Reason for transfer..." className="w-full bg-slate-50 border border-slate-200 rounded-3xl px-6 py-5 text-sm font-semibold h-32 resize-none outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -573,8 +635,27 @@ const ManagementConsole: React.FC = () => {
                 <p className="text-xs font-bold text-red-600">{transferError}</p>
               )}
               <div className="flex gap-4">
-                <button onClick={() => { setShowTransfer(false); setTransferError(''); }} className="flex-1 py-4.5 bg-slate-50 text-slate-500 font-bold rounded-2xl text-[11px] uppercase">Cancel</button>
-                <button onClick={handleTransfer} disabled={!transferDept || !transferStaffId || !transferReason} className="flex-1 py-4.5 bg-indigo-600 text-white font-bold rounded-2xl text-[11px] uppercase">Transfer Now</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransfer(false);
+                    setTransferError('');
+                    setTransferDept('');
+                    setTransferStaffId('');
+                    setTransferReason('');
+                  }}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl text-xs uppercase hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTransfer}
+                  disabled={isTransferring}
+                  className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl text-xs uppercase hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isTransferring ? 'Transferring...' : 'Transfer Now'}
+                </button>
               </div>
             </div>
           </div>
