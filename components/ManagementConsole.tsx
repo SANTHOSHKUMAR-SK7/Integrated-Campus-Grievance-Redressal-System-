@@ -8,7 +8,7 @@ import { getStaffAssistance, getGrievanceSummary } from '../services/geminiServi
 import { generateGrievanceReport } from '../services/reportService';
 import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
-import { FileText, Download, Sparkles } from 'lucide-react';
+import { Download, Sparkles } from 'lucide-react';
 
 const ManagementConsole: React.FC = () => {
   const location = useLocation();
@@ -26,6 +26,7 @@ const ManagementConsole: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<{ summary: string, actionPoints: string[], toneRecommendation: string } | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
 
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferDept, setTransferDept] = useState<Department | ''>('');
@@ -91,14 +92,22 @@ const ManagementConsole: React.FC = () => {
     setAiResponse('');
     setIsSummaryLoading(false);
     setIsAiLoading(false);
+    setSummaryError('');
   }, [grievance?.id]);
 
   const handleFetchSummary = async () => {
     if (!grievance) return;
     setIsSummaryLoading(true);
+    setSummaryError('');
     try {
       const summary = await getGrievanceSummary(grievance.id, grievance);
+      if (!summary) {
+        setSummaryError('Unable to generate AI summary for this grievance right now.');
+        return;
+      }
       setAiSummary(summary);
+    } catch (error) {
+      setSummaryError('Unable to generate AI summary for this grievance right now.');
     } finally {
       setIsSummaryLoading(false);
     }
@@ -335,24 +344,37 @@ const ManagementConsole: React.FC = () => {
         </div>
 
         {/* AI Summary Card */}
-        <div className="bg-white rounded-[32px] border border-slate-200 p-6 shadow-sm overflow-hidden relative">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI Case Summary</h4>
-            {!aiSummary && !isSummaryLoading && (
-              <button onClick={handleFetchSummary} className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
-                <Sparkles className="w-4 h-4 text-indigo-500" />
-              </button>
-            )}
+        <div className="bg-white rounded-[32px] border border-slate-200 p-6 shadow-sm relative shrink-0 min-h-[240px]">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI Case Summary</h4>
+              <p className="mt-2 text-[11px] font-medium text-slate-500">
+                Generate a quick case summary, action points, and tone guidance for this grievance.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleFetchSummary}
+              disabled={isSummaryLoading}
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 transition-all hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isSummaryLoading ? 'Generating...' : aiSummary ? 'Refresh' : 'Generate'}
+            </button>
           </div>
 
           {isSummaryLoading ? (
-            <div className="space-y-3 animate-pulse">
+            <div className="space-y-3 animate-pulse min-h-[140px]">
               <div className="h-4 bg-slate-100 rounded w-3/4"></div>
               <div className="h-4 bg-slate-100 rounded w-full"></div>
               <div className="h-4 bg-slate-100 rounded w-5/6"></div>
             </div>
+          ) : summaryError ? (
+            <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+              <p className="text-xs font-bold text-red-600">{summaryError}</p>
+            </div>
           ) : aiSummary ? (
-            <div className="space-y-4">
+            <div className="space-y-4 min-h-[140px]">
               <p className="text-xs text-slate-600 leading-relaxed font-medium">{aiSummary.summary}</p>
               <div className="space-y-2">
                 <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Action Points</p>
@@ -370,8 +392,11 @@ const ManagementConsole: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="text-center py-4">
-              <p className="text-[10px] font-bold text-slate-300">Generate AI summary for better insights</p>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-5 text-center min-h-[140px] flex flex-col items-center justify-center">
+              <p className="text-[11px] font-bold text-slate-500">No AI summary generated yet.</p>
+              <p className="mt-1 text-[10px] font-medium text-slate-400">
+                Click the Generate button to see the result here.
+              </p>
             </div>
           )}
         </div>
