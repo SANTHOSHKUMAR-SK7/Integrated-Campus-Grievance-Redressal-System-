@@ -7,6 +7,7 @@ import { COLORS } from '../constants';
 import { getStaffAssistance, getGrievanceSummary } from '../services/geminiService';
 import { generateGrievanceReport } from '../services/reportService';
 import Timeline from './Timeline';
+import AttachmentViewer from './AttachmentViewer';
 import { FileText, Download, Sparkles } from 'lucide-react';
 
 const ManagementConsole: React.FC = () => {
@@ -330,6 +331,9 @@ const ManagementConsole: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Attachments Viewer */}
+        <AttachmentViewer attachments={grievance.attachments as any} grievanceId={grievance.id} />
 
         {/* Identity & Verification */}
         <div className="bg-white rounded-[32px] border border-slate-200 p-6 shadow-sm">

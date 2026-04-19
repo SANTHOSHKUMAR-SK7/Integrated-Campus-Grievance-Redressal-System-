@@ -22,7 +22,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'DAIT-secret-key-2026';
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Database Connection Check Middleware
 app.use((req, res, next) => {
@@ -85,9 +86,9 @@ const GrievanceSchema = new mongoose.Schema({
   }],
   remarks: [String],
   attachments: [{
-    name: String,
-    type: String,
-    data: String
+    name: { type: String },
+    attachmentType: { type: String },
+    attachmentData: { type: String }
   }],
   notificationsSent: [{
     type: { type: String },
@@ -175,6 +176,68 @@ async function buildGrievanceLinkForUser(userId: string, grievanceId: string) {
 async function getFallbackAdminId() {
   const adminUser = await User.findOne({ role: 'Admin' }).sort({ _id: 1 }).select('id');
   return adminUser?.id || '';
+}
+
+async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name: string; department?: string }) {
+  const rawDepartment = String(staffUser.department || '').trim();
+  if (!rawDepartment) {
+    return { reassignedCount: 0, department: '' };
+  }
+
+  const department = normalizeDepartment(rawDepartment);
+  if (!department) {
+    return { reassignedCount: 0, department };
+  }
+
+  const staffInDepartment = await User.countDocuments({ role: 'Staff', department });
+  if (staffInDepartment !== 1) {
+    return { reassignedCount: 0, department };
+  }
+
+  const fallbackAdminId = await getFallbackAdminId();
+  const eligibleAssignmentIds = [null, '', fallbackAdminId].filter(Boolean);
+  const grievances = await Grievance.find({
+    department,
+    $or: [
+      { assignedToId: { $exists: false } },
+      { assignedToId: null },
+      { assignedToId: '' },
+      ...(eligibleAssignmentIds.length > 0 ? [{ assignedToId: { $in: eligibleAssignmentIds } }] : [])
+    ]
+  });
+
+  if (grievances.length === 0) {
+    return { reassignedCount: 0, department };
+  }
+
+  const now = Date.now();
+  const grievanceIds: string[] = [];
+
+  for (const grievance of grievances) {
+    const previousAssignee = grievance.assignedToId || fallbackAdminId || 'unassigned';
+    grievance.assignedToId = staffUser.id;
+    grievance.history.push({
+      status: grievance.status,
+      timestamp: now,
+      userId: 'SYSTEM',
+      remark: `Automatically assigned to ${staffUser.name} after staff availability was added for ${department}.`,
+      reassignedFrom: previousAssignee,
+      reassignedTo: staffUser.id
+    });
+    await grievance.save();
+    grievanceIds.push(grievance.id);
+
+    const grievanceLink = await buildGrievanceLinkForUser(staffUser.id, grievance.id);
+    createNotification(
+      staffUser.id,
+      'Grievance Auto-Assigned',
+      `Grievance #${grievance.id} has been automatically assigned to you for the ${department} department.`,
+      'system',
+      grievanceLink
+    );
+  }
+
+  return { reassignedCount: grievanceIds.length, department, grievanceIds };
 }
 
 // --- Auth Middleware ---
@@ -326,12 +389,32 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
   try {
     console.log('--- Grievance Submission Start ---');
     console.log('User:', JSON.stringify(req.user));
-    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('Received attachments:', Array.isArray(req.body.attachments) ? `${req.body.attachments.length} file(s)` : 'none');
     
     const title = String(req.body.title || '').trim() || 'General Concern';
     const description = String(req.body.description || '').trim();
     if (!description) {
       return res.status(400).json({ message: 'Description is required' });
+    }
+
+    // Validate and process attachments
+    let attachments = [];
+    if (Array.isArray(req.body.attachments)) {
+      for (let i = 0; i < req.body.attachments.length; i++) {
+        const att = req.body.attachments[i];
+        if (att.data && typeof att.data === 'string' && att.data.length > 0) {
+          // Check if attachment data is too large (limit to 5MB base64)
+          if (att.data.length > 5 * 1024 * 1024) {
+            console.warn(`Attachment ${i} exceeds size limit: ${att.data.length} bytes`);
+            continue;
+          }
+          attachments.push({
+            name: String(att.name || `attachment-${i}`),
+            attachmentType: String(att.type || 'application/octet-stream'),
+            attachmentData: att.data
+          });
+        }
+      }
     }
 
     const department = normalizeDepartment(req.body.department);
@@ -345,7 +428,6 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
     
     const grievanceData = {
-      ...req.body,
       id: grievanceId,
       title,
       description,
@@ -353,10 +435,15 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       severity,
       sentiment,
       status,
+      isAnonymous: Boolean(req.body.isAnonymous),
       studentId: req.user.id,
       assignedToId: req.body.assignedToId || assignedStaff?.id || fallbackAdminId,
       timestamp: Date.now(),
       lastStatusChange: Date.now(),
+      attachments: attachments,
+      remarks: [],
+      notificationsSent: [],
+      conversation: [],
       history: [{
         status,
         timestamp: Date.now(),
@@ -365,7 +452,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       }]
     };
 
-    console.log('Normalized Grievance Data:', JSON.stringify(grievanceData, null, 2));
+    console.log('Normalized Grievance Data (without attachments):', JSON.stringify({ ...grievanceData, attachments: grievanceData.attachments?.map((a: any) => ({ name: a.name, type: a.type, size: a.data?.length || 0 })) }, null, 2));
     
     const grievance = new Grievance(grievanceData);
     
@@ -665,7 +752,19 @@ app.post('/api/users', authenticate, async (req: any, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: 'User created successfully' });
+    let reassignmentSummary = null;
+    if (role === 'Staff') {
+      reassignmentSummary = await autoAssignExistingGrievancesToStaff({
+        id: newUser.id,
+        name: newUser.name,
+        department: newUser.department
+      });
+    }
+
+    res.status(201).json({
+      message: 'User created successfully',
+      reassignmentSummary
+    });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -684,7 +783,8 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
     const results = {
       success: 0,
       failed: 0,
-      errors: [] as string[]
+      errors: [] as string[],
+      reassigned: [] as Array<{ staffId: string; staffName: string; department: string; grievanceIds: string[] }>
     };
 
     for (const userData of users) {
@@ -715,6 +815,22 @@ app.post('/api/users/bulk', authenticate, async (req: any, res) => {
 
         await newUser.save();
         results.success++;
+
+        if (role === 'Staff') {
+          const reassignmentSummary = await autoAssignExistingGrievancesToStaff({
+            id: newUser.id,
+            name: newUser.name,
+            department: newUser.department
+          });
+          if (reassignmentSummary.reassignedCount > 0) {
+            results.reassigned.push({
+              staffId: newUser.id,
+              staffName: newUser.name,
+              department: reassignmentSummary.department,
+              grievanceIds: reassignmentSummary.grievanceIds || []
+            });
+          }
+        }
       } catch (err: any) {
         results.failed++;
         results.errors.push(`Error creating ${userData.email}: ${err.message}`);
@@ -735,6 +851,8 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Forbidden' });
     const user = await User.findOne({ id: req.params.id });
     if (!user) return res.status(404).json({ message: 'User not found' });
+    const previousRole = user.role;
+    const previousDepartment = user.department;
 
     if (req.user.id === req.params.id && req.body.role && req.body.role !== 'Admin') {
       return res.status(400).json({ message: 'You cannot change the currently signed-in admin account to a non-admin role' });
@@ -764,12 +882,25 @@ app.patch('/api/users/:id', authenticate, async (req: any, res) => {
 
     Object.assign(user, updates);
     await user.save();
+
+    let reassignmentSummary = null;
+    const becameStaff = user.role === 'Staff' && previousRole !== 'Staff';
+    const movedToNewDepartmentAsStaff = user.role === 'Staff' && previousDepartment !== user.department;
+    if (becameStaff || movedToNewDepartmentAsStaff) {
+      reassignmentSummary = await autoAssignExistingGrievancesToStaff({
+        id: user.id,
+        name: user.name,
+        department: user.department
+      });
+    }
+
     res.json({
       id: user.id,
       name: user.name,
       role: user.role,
       email: user.email,
-      department: user.department
+      department: user.department,
+      reassignmentSummary
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
