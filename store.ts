@@ -115,6 +115,16 @@ export const updateGrievance = async (grievance: Grievance) => {
   }
 };
 
+export const deleteGrievance = async (id: string) => {
+  try {
+    const response = await endpoints.grievances.remove(id);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to delete grievance:', error);
+    throw error;
+  }
+};
+
 export const sendMessage = async (grievanceId: string, content: string, type: ChatType = ChatType.STUDENT_STAFF, recipientId?: string) => {
   try {
     const user = getCurrentUser();
