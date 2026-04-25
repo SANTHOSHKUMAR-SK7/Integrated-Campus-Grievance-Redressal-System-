@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { User, UserRole, Department } from '../types';
 import { getAccessToken, getCurrentUser } from '../store';
 import { isStrongPassword, PASSWORD_POLICY_MESSAGE } from '../utils/passwordPolicy';
+import FeedbackToast from './FeedbackToast';
+import ConfirmDialog from './ConfirmDialog';
 
 const parseCsvLine = (line: string): string[] => {
   const values: string[] = [];
@@ -51,6 +53,10 @@ const UserManagement: React.FC = () => {
     role: UserRole.STUDENT,
     department: '' as Department | ''
   });
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -88,7 +94,8 @@ const UserManagement: React.FC = () => {
         .filter(Boolean);
 
       if (lines.length === 0) {
-        alert('The CSV file is empty.');
+        setFeedbackMessage('The CSV file is empty.');
+        setFeedbackType('warning');
         setIsBulkUploading(false);
         e.target.value = '';
         return;
@@ -126,14 +133,16 @@ const UserManagement: React.FC = () => {
           body: JSON.stringify(usersToUpload)
         });
         const result = await response.json();
-        alert(result.message);
+        setFeedbackMessage(result.message || 'Bulk upload completed.');
+        setFeedbackType('success');
         if (result.results?.errors?.length > 0) {
           console.error('Bulk upload errors:', result.results.errors);
         }
         fetchUsers();
       } catch (error) {
         console.error('Bulk upload failed:', error);
-        alert('Bulk upload failed. Check console for details.');
+        setFeedbackMessage('Bulk upload failed. Check console for details.');
+        setFeedbackType('error');
       } finally {
         setIsBulkUploading(false);
         // Reset input
@@ -158,17 +167,20 @@ const UserManagement: React.FC = () => {
         fetchUsers();
       } else {
         const err = await response.json();
-        alert(err.message || 'Failed to update user');
+        setFeedbackMessage(err.message || 'Failed to update user');
+        setFeedbackType('error');
       }
     } catch (error) {
       console.error('Failed to update user:', error);
-      alert('Failed to update user. Please try again.');
+      setFeedbackMessage('Failed to update user. Please try again.');
+      setFeedbackType('error');
     }
   };
 
   const handleAddUser = async () => {
     if (!isStrongPassword(newUser.password)) {
-      alert(PASSWORD_POLICY_MESSAGE);
+      setFeedbackMessage(PASSWORD_POLICY_MESSAGE);
+      setFeedbackType('warning');
       return;
     }
     try {
@@ -191,23 +203,36 @@ const UserManagement: React.FC = () => {
           department: ''
         });
         fetchUsers();
+        setFeedbackMessage('User added successfully.');
+        setFeedbackType('success');
       } else {
         const err = await response.json();
-        alert(err.message || 'Failed to add user');
+        setFeedbackMessage(err.message || 'Failed to add user');
+        setFeedbackType('error');
       }
     } catch (error) {
       console.error('Failed to add user:', error);
+      setFeedbackMessage('Failed to add user. Please try again.');
+      setFeedbackType('error');
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (currentUser?.id === userId) {
-      alert('You cannot delete the currently signed-in admin account.');
+  const confirmDeleteUser = (user: User) => {
+    if (currentUser?.id === user.id) {
+      setFeedbackMessage('You cannot delete the currently signed-in admin account.');
+      setFeedbackType('warning');
       return;
     }
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    setPendingDeleteUser(user);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!pendingDeleteUser) return;
+    setShowDeleteConfirm(false);
+
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`/api/users/${pendingDeleteUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${getAccessToken()}`
@@ -215,13 +240,19 @@ const UserManagement: React.FC = () => {
       });
       if (response.ok) {
         fetchUsers();
+        setFeedbackMessage('User deleted successfully.');
+        setFeedbackType('success');
       } else {
         const err = await response.json();
-        alert(err.message || 'Failed to delete user');
+        setFeedbackMessage(err.message || 'Failed to delete user');
+        setFeedbackType('error');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
-      alert('Failed to delete user. Please try again.');
+      setFeedbackMessage('Failed to delete user. Please try again.');
+      setFeedbackType('error');
+    } finally {
+      setPendingDeleteUser(null);
     }
   };
 
@@ -293,7 +324,7 @@ const UserManagement: React.FC = () => {
                      EDIT
                    </button>
                    <button 
-                     onClick={() => handleDeleteUser(u.id)}
+                     onClick={() => confirmDeleteUser(u)}
                      disabled={currentUser?.id === u.id}
                      className="text-xs font-black text-rose-600 hover:bg-rose-50 px-4 py-2 rounded-lg transition-all"
                    >
@@ -459,7 +490,8 @@ const UserManagement: React.FC = () => {
                       onClick={() => {
                         const nextPassword = String(editingUser.password || '').trim();
                         if (nextPassword && !isStrongPassword(nextPassword)) {
-                          alert(PASSWORD_POLICY_MESSAGE);
+                          setFeedbackMessage(PASSWORD_POLICY_MESSAGE);
+                          setFeedbackType('warning');
                           return;
                         }
                         handleUpdateUser(editingUser.id, { 

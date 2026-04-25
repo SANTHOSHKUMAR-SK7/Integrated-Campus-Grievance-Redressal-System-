@@ -70,7 +70,7 @@ export const downloadAttachment = async (attachment: Attachment, grievanceId: st
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error downloading attachment:', error);
-    alert('Failed to download attachment. Please try again.');
+    throw new Error('Failed to download attachment. Please try again.');
   }
 };
 
@@ -104,11 +104,11 @@ export const viewAttachment = async (attachment: Attachment, grievanceId: string
     // Open in new window/tab
     const newWindow = window.open(blobUrl, '_blank');
     if (!newWindow) {
-      alert('Please allow pop-ups to view attachments');
+      throw new Error('Please allow pop-ups to view attachments.');
     }
   } catch (error) {
     console.error('Error viewing attachment:', error);
-    alert('Failed to view attachment. Please check the file format or try downloading instead.');
+    throw new Error('Failed to view attachment. Please check the file format or try downloading instead.');
   }
 };
 

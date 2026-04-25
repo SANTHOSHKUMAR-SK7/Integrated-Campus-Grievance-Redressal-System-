@@ -64,15 +64,26 @@ const buildFollowUpQuestion = (text: string) => {
   const missing: string[] = [];
   if (!hasLocation(text)) missing.push('exact location');
   if (!hasIssueDescription(text)) missing.push('what exactly happened');
-  if (!/(department|hostel|mess|transport|academic|technical|administrative|infrastructure|cse|ece|it|mech)/i.test(text)) {
-    missing.push('related department');
-  }
+  const needsDepartment = !/(department|hostel|mess|transport|academic|technical|administrative|infrastructure|cse|ece|it|mech)/i.test(text);
+  if (needsDepartment) missing.push('related department');
 
   if (missing.length === 0) {
     return 'Please add when this started and how it is affecting you.';
   }
 
-  return `Please provide the ${missing.join(', ')}.`;
+  const departmentOptions =
+    'Which department is related?\n' +
+    '1. Hostel\n' +
+    '2. Mess\n' +
+    '3. Academic\n' +
+    '4. Technical\n' +
+    '5. Infrastructure\n' +
+    '6. Administrative\n' +
+    '7. Transport\n' +
+    '8. Other';
+
+  const question = `Please provide the ${missing.join(', ')}.`;
+  return needsDepartment ? `${departmentOptions}\n\n${question}` : question;
 };
 
 const buildSummary = (text: string) => {

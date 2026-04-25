@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getGrievances, getGrievanceById, getCurrentUser, sendMessage } from '../store';
+import { getGrievances, getGrievanceById, getCurrentUser, sendMessage, deleteGrievance } from '../store';
 import { Grievance, Status, Department, ChatType } from '../types';
 import { ICONS, COLORS } from '../constants';
 import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
+import FeedbackToast from './FeedbackToast';
 
 const GrievanceTracker: React.FC = () => {
   const user = getCurrentUser();
@@ -18,6 +19,9 @@ const GrievanceTracker: React.FC = () => {
   const [selectedGrievance, setSelectedGrievance] = useState<Grievance | null>(null);
   const [showFilingOptions, setShowFilingOptions] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
   const [chatInput, setChatInput] = useState('');
   const [chatError, setChatError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -77,6 +81,28 @@ const GrievanceTracker: React.FC = () => {
       setSelectedGrievance(res);
     } catch (error: any) {
       setChatError(error?.message || 'Unable to send your message right now.');
+    }
+  };
+
+  const openDeleteConfirmation = () => {
+    if (!selectedGrievance) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteSelectedGrievance = async () => {
+    if (!selectedGrievance) return;
+    setShowDeleteConfirm(false);
+
+    try {
+      await deleteGrievance(selectedGrievance.id);
+      setSelectedGrievance(null);
+      await refreshData();
+      setToastType('success');
+      setToastMessage('Grievance deleted successfully.');
+    } catch (error: any) {
+      console.error('Delete grievance failed:', error);
+      setToastType('error');
+      setToastMessage(error?.message || 'Unable to delete grievance. Please try again.');
     }
   };
 
@@ -200,9 +226,19 @@ const GrievanceTracker: React.FC = () => {
                   {selectedGrievance.isAnonymous ? 'Anonymous Filing' : 'Profile Linked Filing'}
                 </span>
               </div>
-              <button onClick={() => setSelectedGrievance(null)} className="p-2 sm:p-3 bg-slate-50 sm:bg-transparent text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-full transition-colors">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
+              <div className="flex items-center gap-2">
+                {user.role === 'Student' && selectedGrievance.studentId === user.id && (
+                  <button
+                    onClick={openDeleteConfirmation}
+                    className="rounded-full border border-red-100 bg-red-50 text-red-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                  >
+                    Delete
+                  </button>
+                )}
+                <button onClick={() => setSelectedGrievance(null)} className="p-2 sm:p-3 bg-slate-50 sm:bg-transparent text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-full transition-colors">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
 
             {/* Chat Flow */}
@@ -298,6 +334,41 @@ const GrievanceTracker: React.FC = () => {
               </div>
             </div>
           )}
+
+          {selectedGrievance && showDeleteConfirm && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/70 p-4">
+              <div className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-2xl border border-slate-200">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-[0.24em] text-red-600">Confirm Deletion</p>
+                    <h3 className="mt-3 text-2xl font-black text-slate-900">Delete grievance #{selectedGrievance.id}?</h3>
+                    <p className="mt-2 text-sm text-slate-600">This will permanently remove the complaint and cannot be undone.</p>
+                  </div>
+                  <div className="flex items-center gap-3 justify-end pt-4 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-3 text-sm font-black uppercase tracking-widest text-slate-600 hover:bg-slate-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedGrievance}
+                      className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <FeedbackToast
+            message={toastMessage}
+            type={toastType}
+            onClose={() => setToastMessage('')}
+          />
         </div>
       )}
     </>
