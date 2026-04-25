@@ -1391,19 +1391,7 @@ async function seed() {
       console.log('Admin user already exists. Keeping existing password.');
     }
 
-    const count = await User.countDocuments();
-    if (count <= 1) {
-      console.log('Seeding other initial users...');
-      const initialUsers = [
-        { id: 'STU-01', name: 'SK', role: 'Student', email: 'sk@dait.com', password: hashedPassword },
-        { id: 'STAFF-TECH', name: 'Mr. Technical', role: 'Staff', email: 'tech@dait.com', password: hashedPassword, department: 'Technical' },
-        { id: 'STAFF-ACAD', name: 'Dr. Academic', role: 'Staff', email: 'acad@dait.com', password: hashedPassword, department: 'Academic' },
-      ];
-      await User.insertMany(initialUsers);
-      console.log('Database seeded with initial users');
-    } else {
-      console.log(`Database already has ${count} users. Skipping seed.`);
-    }
+    console.log('No non-admin initial users will be seeded. Only admin account is kept by default.');
   } catch (error) {
     console.error('Seeding error:', error);
   }
