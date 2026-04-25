@@ -682,6 +682,28 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
   }
 });
 
+app.delete('/api/grievances/:id', authenticate, async (req: any, res) => {
+  try {
+    const grievance = await Grievance.findOne({ id: req.params.id });
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    if (req.user.role === 'Student') {
+      if (grievance.studentId !== req.user.id) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+    } else if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    await Grievance.deleteOne({ id: req.params.id });
+    await AttachmentRecord.deleteMany({ grievanceId: req.params.id });
+
+    res.json({ message: 'Grievance deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.get('/api/grievances/:id/attachments/:attachmentId', authenticate, async (req: any, res) => {
   try {
     const grievance = await Grievance.findOne({ id: req.params.id });
