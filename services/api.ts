@@ -31,6 +31,7 @@ export const endpoints = {
     submit: (data: any) => api.post('/grievances', data),
     updateStatus: (id: string, status: string, remark: string, remarks?: string[]) => 
       api.patch(`/grievances/${id}/status`, { status, remark, remarks }),
+    remove: (id: string) => api.delete(`/grievances/${id}`),
   },
 };
 
