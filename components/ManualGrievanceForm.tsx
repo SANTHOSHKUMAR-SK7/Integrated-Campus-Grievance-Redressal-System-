@@ -62,11 +62,9 @@ const ManualGrievanceForm: React.FC = () => {
 
     try {
       const now = Date.now();
-      const grievanceId = `DAIT-${now.toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
       const severity = computeSeverity(`${title} ${description}`);
 
       await saveGrievance({
-        id: grievanceId,
         title: title.trim(),
         summary: title.trim(),
         description: description.trim(),

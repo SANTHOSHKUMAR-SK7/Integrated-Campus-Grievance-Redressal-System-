@@ -50,11 +50,6 @@ const detectSentiment = (text: string) => {
   return 'Neutral';
 };
 
-const hasLocation = (text: string) => {
-  const normalized = text.toLowerCase();
-  return /(room|hostel|block|floor|lab|building|classroom|canteen|library|office|bus|gate|department)/.test(normalized);
-};
-
 const hasIssueDescription = (text: string) => {
   const normalized = text.toLowerCase();
   return /(issue|problem|water|power|wifi|food|clean|dirty|leak|broken|delay|harass|complaint|not working|stopped)/.test(normalized);
@@ -62,7 +57,6 @@ const hasIssueDescription = (text: string) => {
 
 const buildFollowUpQuestion = (text: string) => {
   const missing: string[] = [];
-  if (!hasLocation(text)) missing.push('exact location');
   if (!hasIssueDescription(text)) missing.push('what exactly happened');
   const needsDepartment = !/(department|hostel|mess|transport|academic|technical|administrative|infrastructure|cse|ece|it|mech)/i.test(text);
   if (needsDepartment) missing.push('related department');
@@ -93,7 +87,7 @@ const buildSummary = (text: string) => {
 
 const buildFallbackAnalysis = (complaintText: string, history: ChatMessage[]) => {
   const fullText = getUserConversationText(history, complaintText);
-  const detailedEnough = hasLocation(fullText) && hasIssueDescription(fullText) && fullText.length >= 25;
+  const detailedEnough = hasIssueDescription(fullText) && fullText.length >= 25;
 
   return {
     isDetailedEnough: detailedEnough,

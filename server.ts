@@ -86,6 +86,35 @@ const AttachmentSchema = new mongoose.Schema({
 
 const AttachmentRecord = mongoose.model('AttachmentRecord', AttachmentSchema);
 
+const DepartmentCounterSchema = new mongoose.Schema({
+  department: { type: String, required: true, unique: true },
+  seq: { type: Number, default: 0 }
+});
+
+const DepartmentCounter = mongoose.model('DepartmentCounter', DepartmentCounterSchema);
+
+const normalizeDepartmentIdPart = (department: string) => {
+  const normalized = String(department || 'OTHER').trim().toUpperCase();
+  const cleaned = normalized.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return cleaned || 'OTHER';
+};
+
+const getNextDepartmentSequence = async (department: string) => {
+  const departmentKey = normalizeDepartmentIdPart(department);
+  const counter = await DepartmentCounter.findOneAndUpdate(
+    { department: departmentKey },
+    { $inc: { seq: 1 } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return String(counter.seq).padStart(4, '0');
+};
+
+const createDepartmentGrievanceId = async (department: string) => {
+  const departmentKey = normalizeDepartmentIdPart(department);
+  const sequence = await getNextDepartmentSequence(departmentKey);
+  return `DAIT-${departmentKey}-${sequence}`;
+};
+
 const GrievanceSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
@@ -501,7 +530,8 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     if (!description) {
       return res.status(400).json({ message: 'Description is required' });
     }
-    const grievanceId = String(req.body.id || '').trim() || createGrievanceId();
+    const department = normalizeDepartment(req.body.department);
+    const grievanceId = await createDepartmentGrievanceId(department);
 
     // Validate and process attachments
     let attachmentMetadata = [];
@@ -536,7 +566,6 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
       }
     }
 
-    const department = normalizeDepartment(req.body.department);
     const severity = computeSeverity(`${title} ${description}`);
     const sentiment = req.body.sentiment || computeSentiment(description);
     const status = VALID_STATUSES.includes(String(req.body.status || '').toLowerCase())

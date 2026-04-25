@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
             </Link>
           </div>
           <div className="divide-y divide-slate-100">
-            {filteredMine.slice(0, 3).map((g) => (
+            {filteredMine.map((g) => (
               <div
                 key={g.id}
                 className="px-8 py-6 hover:bg-slate-50 transition-all cursor-pointer"

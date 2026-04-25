@@ -90,7 +90,7 @@ const GrievanceChatbot: React.FC = () => {
 
         if (!result.isDetailedEnough) {
           setState('COLLECTING');
-          addBotMessage(result.followUpQuestion || 'Institutional protocols require more specific details. Please clarify the location and nature of the concern.');
+          addBotMessage(result.followUpQuestion || 'Institutional protocols require more specific details. Please describe the issue clearly and include any relevant department or context.');
         } else {
           setState('REVIEW');
           addBotMessage(
@@ -158,13 +158,11 @@ const GrievanceChatbot: React.FC = () => {
   };
 
   const finalizeGrievance = async () => {
-    const grievanceId = 'DAIT-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
     const now = Date.now();
     const dept = normalizeDepartment(analysis?.department);
     const initialStatus = normalizeStatus(analysis?.initialStatus);
 
-    const newGrievance: Grievance = {
-      id: grievanceId,
+    const newGrievance: Partial<Grievance> = {
       title: analysis?.summary || 'General Concern',
       timestamp: now,
       description: messages.filter(m => m.role === 'user').map(m => m.content).join('\n'),
@@ -184,7 +182,8 @@ const GrievanceChatbot: React.FC = () => {
       summary: analysis?.summary
     };
 
-    await saveGrievance(newGrievance);
+    const saved = await saveGrievance(newGrievance);
+    const grievanceId = saved?.id || 'unknown';
     addBotMessage(`Success. **Verified.** Ref: **#${grievanceId}**.\n\nRouted to **${dept}**. ${isAnonymous ? 'Filing is Anonymous.' : 'Filing linked to profile.'}`);
     setState('DONE');
   };
