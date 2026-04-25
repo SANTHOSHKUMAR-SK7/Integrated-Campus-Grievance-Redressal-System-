@@ -510,6 +510,23 @@ const UserManagement: React.FC = () => {
            </div>
         </div>
       )}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={`Delete ${pendingDeleteUser?.name || 'this user'}?`}
+        message="This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteUser}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setPendingDeleteUser(null);
+        }}
+      />
+      <FeedbackToast
+        message={feedbackMessage}
+        type={feedbackType}
+        onClose={() => setFeedbackMessage('')}
+      />
     </div>
   );
 };
