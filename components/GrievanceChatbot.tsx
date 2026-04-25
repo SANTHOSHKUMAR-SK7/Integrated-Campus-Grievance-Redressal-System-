@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { analyzeGrievanceState } from '../services/geminiService';
 import { ChatMessage, Grievance, Status, Department, Severity } from '../types';
 import { saveGrievance, getCurrentUser } from '../store';
+import FeedbackToast from './FeedbackToast';
 
 type ChatState = 'IDLE' | 'COLLECTING' | 'REVIEW' | 'DONE';
 
@@ -16,6 +17,8 @@ const GrievanceChatbot: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [attachment, setAttachment] = useState<any>(null);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -190,11 +193,13 @@ const GrievanceChatbot: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Only images are allowed as extra proof.');
+        setToastMessage('Only images are allowed as extra proof.');
+        setToastType('warning');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB.');
+        setToastMessage('File size should be less than 5MB.');
+        setToastType('warning');
         return;
       }
       const reader = new FileReader();
@@ -322,6 +327,11 @@ const GrievanceChatbot: React.FC = () => {
           </div>
         </form>
       </div>
+      <FeedbackToast
+        message={toastMessage}
+        type={toastType}
+        onClose={() => setToastMessage('')}
+      />
     </div>
   );
 };
