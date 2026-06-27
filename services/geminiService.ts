@@ -11,15 +11,25 @@ const getAI = () => {
 };
 
 const MODEL_NAME = "gemini-2.5-flash";
+const ALLOWED_DEPARTMENTS = ['Technical', 'Infrastructure', 'Academic', 'Administrative', 'Mess', 'Hostel', 'Transport', 'Other'] as const;
+const ALLOWED_SEVERITIES = ['Low', 'Medium', 'High', 'Critical'] as const;
+const ALLOWED_SENTIMENTS = ['Positive', 'Neutral', 'Frustrated', 'Angry', 'Urgent'] as const;
+const ALLOWED_STATUSES = ['pending', 'in-progress', 'resolved', 'closed'] as const;
 
 const getUserConversationText = (history: ChatMessage[], complaintText: string) => {
-  const priorUserText = (history || [])
+  const trimmedComplaintText = complaintText.trim();
+  const userMessages = (history || [])
     .filter((m) => m.role === 'user')
     .map((m) => m.content.trim())
-    .filter(Boolean)
-    .join('\n');
+    .filter(Boolean);
 
-  return [priorUserText, complaintText.trim()].filter(Boolean).join('\n').trim();
+  const dedupedUserMessages =
+    userMessages.length > 0 && userMessages[userMessages.length - 1] === trimmedComplaintText
+      ? userMessages.slice(0, -1)
+      : userMessages;
+
+  const priorUserText = dedupedUserMessages.join('\n');
+  return [priorUserText, trimmedComplaintText].filter(Boolean).join('\n').trim();
 };
 
 const detectDepartment = (text: string) => {
@@ -101,6 +111,16 @@ const buildFallbackAnalysis = (complaintText: string, history: ChatMessage[]) =>
   };
 };
 
+const pickAllowedValue = <T extends readonly string[]>(
+  value: unknown,
+  allowedValues: T,
+  fallbackValue: T[number]
+): T[number] => {
+  const normalizedValue = String(value || '').trim().toLowerCase();
+  const matchedValue = allowedValues.find((allowedValue) => allowedValue.toLowerCase() === normalizedValue);
+  return matchedValue || fallbackValue;
+};
+
 const normalizeAIResult = (resultText: string | undefined, complaintText: string, history: ChatMessage[]) => {
   const fallback = buildFallbackAnalysis(complaintText, history);
   if (!resultText) return fallback;
@@ -111,10 +131,10 @@ const normalizeAIResult = (resultText: string | undefined, complaintText: string
       isDetailedEnough: typeof parsed.isDetailedEnough === 'boolean' ? parsed.isDetailedEnough : fallback.isDetailedEnough,
       followUpQuestion: parsed.followUpQuestion || fallback.followUpQuestion,
       summary: parsed.summary || fallback.summary,
-      department: parsed.department || fallback.department,
-      severity: parsed.severity || fallback.severity,
-      sentiment: parsed.sentiment || fallback.sentiment,
-      initialStatus: parsed.initialStatus || fallback.initialStatus,
+      department: pickAllowedValue(parsed.department, ALLOWED_DEPARTMENTS, fallback.department as (typeof ALLOWED_DEPARTMENTS)[number]),
+      severity: pickAllowedValue(parsed.severity, ALLOWED_SEVERITIES, fallback.severity as (typeof ALLOWED_SEVERITIES)[number]),
+      sentiment: pickAllowedValue(parsed.sentiment, ALLOWED_SENTIMENTS, fallback.sentiment as (typeof ALLOWED_SENTIMENTS)[number]),
+      initialStatus: pickAllowedValue(parsed.initialStatus, ALLOWED_STATUSES, fallback.initialStatus as (typeof ALLOWED_STATUSES)[number]),
       fingerprint: parsed.fingerprint || fallback.fingerprint,
     };
   } catch {

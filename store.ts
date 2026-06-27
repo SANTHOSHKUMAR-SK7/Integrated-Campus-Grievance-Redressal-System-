@@ -70,6 +70,7 @@ export const subscribeToSession = (callback: () => void) => {
 export const getGrievances = async (): Promise<Grievance[]> => {
   try {
     const response = await endpoints.grievances.getAll();
+    console.log('API response for grievances:', response);
     return response.data || [];
   } catch (error) {
     console.error('Failed to fetch grievances:', error);

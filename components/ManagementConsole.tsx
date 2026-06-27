@@ -237,7 +237,7 @@ const ManagementConsole: React.FC = () => {
                     <p className="text-sm font-black text-slate-900">#{item.id}</p>
                     <p className="text-sm font-bold text-slate-700 mt-1 line-clamp-1">{item.title || item.description}</p>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
-                      {item.department} {item.assignedToId === currentUser.id ? '• Assigned to you' : '• Department access'}
+                      {item.department} • Assigned to you
                     </p>
                   </div>
                   <span className={COLORS.status[item.status]}>{item.status}</span>
@@ -258,7 +258,7 @@ const ManagementConsole: React.FC = () => {
 
   const internalRecipients = staffList.filter((staffMember) => {
     if (staffMember.id === currentUser.id) return false;
-    return staffMember.id === grievance.assignedToId || staffMember.department === grievance.department;
+    return staffMember.id === grievance.assignedToId;
   });
 
   const transferCandidates = staffList.filter((staffMember) => {

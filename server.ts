@@ -241,6 +241,37 @@ async function getDepartmentStaffIds(department?: string) {
   return staffMembers.map((staffMember) => staffMember.id);
 }
 
+async function getLeastLoadedStaffForDepartment(department?: string) {
+  const normalizedDepartment = normalizeDepartment(department);
+  const staffMembers = await User.find({ role: 'Staff', department: normalizedDepartment }).select('id name department');
+
+  if (staffMembers.length === 0) {
+    return null;
+  }
+
+  const activeStatuses = ['pending', 'in-progress', 'resolved'];
+  const staffLoadCounts = await Promise.all(
+    staffMembers.map(async (staffMember) => {
+      const assignedCount = await Grievance.countDocuments({
+        assignedToId: staffMember.id,
+        status: { $in: activeStatuses }
+      });
+
+      return {
+        staffMember,
+        assignedCount
+      };
+    })
+  );
+
+  const leastAssignedCount = Math.min(...staffLoadCounts.map((item) => item.assignedCount));
+  const leastLoadedStaff = staffLoadCounts
+    .filter((item) => item.assignedCount === leastAssignedCount)
+    .map((item) => item.staffMember);
+
+  return leastLoadedStaff[Math.floor(Math.random() * leastLoadedStaff.length)] || null;
+}
+
 async function notifyManyUsers(
   userIds: Array<string | undefined>,
   title: string,
@@ -292,22 +323,27 @@ async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name
   const grievanceIds: string[] = [];
 
   for (const grievance of grievances) {
+    const selectedStaff = await getLeastLoadedStaffForDepartment(department);
+    if (!selectedStaff) {
+      break;
+    }
+
     const previousAssignee = grievance.assignedToId || fallbackAdminId || 'unassigned';
-    grievance.assignedToId = staffUser.id;
+    grievance.assignedToId = selectedStaff.id;
     grievance.history.push({
       status: grievance.status,
       timestamp: now,
       userId: 'SYSTEM',
-      remark: `Automatically assigned to ${staffUser.name} after staff availability was added for ${department}.`,
+      remark: `Automatically assigned to ${selectedStaff.name} based on current workload for ${department}.`,
       reassignedFrom: previousAssignee,
-      reassignedTo: staffUser.id
+      reassignedTo: selectedStaff.id
     });
     await grievance.save();
     grievanceIds.push(grievance.id);
 
     const adminIds = await getAdminIds();
     await notifyManyUsers(
-      [staffUser.id],
+      [selectedStaff.id],
       'Grievance Auto-Assigned',
       `Grievance #${grievance.id} has been automatically assigned to you for the ${department} department.`,
       'system',
@@ -316,14 +352,14 @@ async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name
     await notifyManyUsers(
       [grievance.studentId],
       'Grievance Handler Assigned',
-      `Your grievance #${grievance.id} is now assigned to ${staffUser.name} from the ${department} team.`,
+      `Your grievance #${grievance.id} is now assigned to ${selectedStaff.name} from the ${department} team.`,
       'status_change',
       grievance.id
     );
     await notifyManyUsers(
       adminIds,
       'Backlog Grievance Assigned',
-      `Grievance #${grievance.id} has been auto-assigned to ${staffUser.name} in ${department}.`,
+      `Grievance #${grievance.id} has been auto-assigned to ${selectedStaff.name} in ${department}.`,
       'system',
       grievance.id
     );
@@ -364,7 +400,7 @@ const canManageGrievance = (user: any, grievance: any) => {
   if (!user || !grievance) return false;
   if (user.role === 'Admin') return true;
   if (user.role === 'Staff') {
-    return grievance.assignedToId === user.id || grievance.department === user.department;
+    return grievance.assignedToId === user.id;
   }
   return false;
 };
@@ -381,7 +417,7 @@ const canReceiveInternalGrievanceMessage = (recipient: any, grievance: any) => {
   if (!recipient || !grievance) return false;
   if (recipient.role === 'Admin') return true;
   if (recipient.role !== 'Staff') return false;
-  return recipient.id === grievance.assignedToId || recipient.department === grievance.department;
+  return recipient.id === grievance.assignedToId;
 };
 
 const VALID_DEPARTMENTS = ['Technical', 'Infrastructure', 'Academic', 'Administrative', 'Mess', 'Hostel', 'Transport', 'Other'];
@@ -489,9 +525,11 @@ app.get('/api/grievances', authenticate, async (req: any, res) => {
       query = { studentId: req.user.id };
     } else if (req.user.role === 'Staff') {
       await syncDepartmentBacklogForStaffById(req.user.id);
-      query = { $or: [{ assignedToId: req.user.id }, { department: req.user.department }] };
+      query = { assignedToId: req.user.id };
     }
+    console.log('Grievances query:', query, 'user:', req.user);
     const grievances = await Grievance.find(query, getGrievanceListProjection()).sort({ timestamp: -1 });
+    console.log('Found grievances:', grievances.length);
     res.json(grievances);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -509,7 +547,7 @@ app.get('/api/grievances/:id', authenticate, async (req: any, res) => {
 
     if (req.user.role === 'Student' && grievance.studentId !== req.user.id) {
       return res.status(403).json({ message: 'Forbidden' });
-    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id && grievance.department !== req.user.department) {
+    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
@@ -571,7 +609,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
     const status = VALID_STATUSES.includes(String(req.body.status || '').toLowerCase())
       ? String(req.body.status).toLowerCase()
       : 'pending';
-    const assignedStaff = await User.findOne({ role: 'Staff', department }).select('id');
+    const assignedStaff = await getLeastLoadedStaffForDepartment(department);
     const fallbackAdminId = await getFallbackAdminId();
     
     const grievanceData = {
@@ -620,7 +658,7 @@ app.post('/api/grievances', authenticate, async (req: any, res) => {
 
     try {
       await notifyManyUsers(
-        [...departmentStaffIds, ...adminIds],
+        [assignedHandler, ...adminIds],
         'New Grievance Filed',
         `A new grievance #${grievance.id} has been filed in ${grievance.department}: ${grievance.title}`,
         'system',
@@ -677,8 +715,6 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
     await grievance.save();
 
     const adminIds = await getAdminIds();
-    const previousDepartmentStaffIds = await getDepartmentStaffIds(previousDepartment);
-    const currentDepartmentStaffIds = await getDepartmentStaffIds(grievance.department);
     const previousHandler = previousAssignedToId ? await User.findOne({ id: previousAssignedToId }).select('name') : null;
     const currentHandler = grievance.assignedToId ? await User.findOne({ id: grievance.assignedToId }).select('name') : null;
     const assignmentChanged = previousAssignedToId !== grievance.assignedToId;
@@ -693,8 +729,6 @@ app.patch('/api/grievances/:id', authenticate, async (req: any, res) => {
           grievance.studentId,
           previousAssignedToId,
           grievance.assignedToId,
-          ...previousDepartmentStaffIds,
-          ...currentDepartmentStaffIds,
           ...adminIds
         ].filter((id): id is string => Boolean(id)),
         'Grievance Reassigned',
@@ -740,7 +774,7 @@ app.get('/api/grievances/:id/attachments/:attachmentId', authenticate, async (re
 
     if (req.user.role === 'Student' && grievance.studentId !== req.user.id) {
       return res.status(403).json({ message: 'Forbidden' });
-    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id && grievance.department !== req.user.department) {
+    } else if (req.user.role === 'Staff' && grievance.assignedToId !== req.user.id) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
@@ -823,8 +857,6 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
         await grievance.save();
 
         const adminIds = await getAdminIds();
-        const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
-
         if (recipientId) {
             await notifyManyUsers(
                 [recipientId],
@@ -841,7 +873,6 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
                 [
                   grievance.studentId,
                   grievance.assignedToId,
-                  ...departmentStaffIds,
                   ...adminIds
                 ].filter((id): id is string => Boolean(id)),
                 'Grievance Conversation Updated',
@@ -854,7 +885,6 @@ app.post('/api/grievances/:id/messages', authenticate, async (req: any, res) => 
             await notifyManyUsers(
                 [
                   grievance.assignedToId,
-                  ...departmentStaffIds,
                   ...adminIds
                 ].filter((id): id is string => Boolean(id)),
                 'Internal Grievance Note Added',
@@ -902,12 +932,10 @@ app.patch('/api/grievances/:id/status', authenticate, async (req: any, res: any)
     await grievance.save();
 
     const adminIds = await getAdminIds();
-    const departmentStaffIds = await getDepartmentStaffIds(grievance.department);
     await notifyManyUsers(
       [
         grievance.studentId,
         grievance.assignedToId,
-        ...departmentStaffIds,
         ...adminIds
       ].filter((id): id is string => Boolean(id)),
       'Grievance Status Updated',
@@ -1320,7 +1348,7 @@ app.get('/api/users/:id', authenticate, async (req: any, res) => {
         if (req.user.role === 'Staff') {
           const grievance = await Grievance.findOne({
             studentId: user.id,
-            $or: [{ assignedToId: req.user.id }, { department: req.user.department }]
+            assignedToId: req.user.id
           }).select('id');
 
           if (grievance) {

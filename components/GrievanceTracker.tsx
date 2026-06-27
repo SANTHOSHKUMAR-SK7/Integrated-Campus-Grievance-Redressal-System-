@@ -8,6 +8,32 @@ import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
 import FeedbackToast from './FeedbackToast';
 
+const FILTER_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: 'All', value: 'all' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'In Progress', value: 'in-progress' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'Closed', value: 'closed' },
+];
+
+const StatusFilter = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  <div className="flex items-center gap-2">
+    {FILTER_OPTIONS.map((option) => (
+      <button
+        key={option.value}
+        onClick={() => onChange(option.value)}
+        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+          value === option.value
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+        }`}
+      >
+        {option.label}
+      </button>
+    ))}
+  </div>
+);
+
 const GrievanceTracker: React.FC = () => {
   const user = getCurrentUser();
   const navigate = useNavigate();
@@ -124,12 +150,33 @@ const GrievanceTracker: React.FC = () => {
 
         {/* Table & Filters (Simplified for space) */}
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="px-8 py-6 border-b border-slate-100 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Your Grievances</h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Showing {complaints.length} of {grievances.length}
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by ID or title..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+              <StatusFilter value={filterStatus} onChange={setFilterStatus} />
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
                 <tr>
                   <th className="px-10 py-5">Case Reference</th>
                   <th className="px-10 py-5">Summary</th>
+                  <th className="px-10 py-5">Filed Date</th>
                   <th className="px-10 py-5">Filing Mode</th>
                   <th className="px-10 py-5">Status</th>
                   <th className="px-10 py-5">Category</th>
@@ -141,6 +188,7 @@ const GrievanceTracker: React.FC = () => {
                   <tr key={g.id} className="hover:bg-slate-50 transition-all cursor-pointer group" onClick={() => setSelectedGrievance(g)}>
                     <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
                     <td className="px-10 py-6 text-sm font-bold text-slate-700">{g.summary || 'Awaiting Analysis'}</td>
+                    <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(g.timestamp).toLocaleDateString()}</span></td>
                     <td className="px-10 py-6">
                       <span className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest ${
                         g.isAnonymous ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'

@@ -13,6 +13,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setUser] = useState(getCurrentUser());
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -80,7 +81,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   const isAuthPage = location.pathname === '/login' || location.pathname === '/';
-  if (!currentUser || isAuthPage) return <>{children}</>;
+  const isAdminDashboard = currentUser?.role === UserRole.ADMIN && location.pathname === '/dashboard';
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <ICONS.Dashboard />, roles: [UserRole.STUDENT, UserRole.STAFF, UserRole.ADMIN] },
@@ -99,10 +100,31 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  useEffect(() => {
+    setSidebarOpen(!isAdminDashboard);
+  }, [isAdminDashboard]);
+
+  if (!currentUser || isAuthPage) return <>{children}</>;
+
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen flex bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 overflow-x-hidden">
+      {isAdminDashboard && sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar overlay"
+          className="fixed inset-0 z-20 bg-slate-950/20 backdrop-blur-[1px]"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-[300px] bg-white border-r border-slate-200 flex flex-col fixed h-screen z-30 shadow-[10px_0_30px_rgba(0,0,0,0.015)]">
+      <aside
+        className={`bg-white border-r border-slate-200 flex flex-col fixed h-screen z-30 shadow-[10px_0_30px_rgba(0,0,0,0.015)] transition-transform duration-300 ${
+          isAdminDashboard
+            ? `w-[300px] top-0 left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : 'w-[300px] translate-x-0'
+        }`}
+      >
         <div className="p-10 pb-12 flex items-center gap-5">
           <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center p-2.5 shadow-sm border border-indigo-100/50">
             <img src="/dait-logo.png" alt="DAIT" className="h-full w-auto object-contain" />
@@ -111,6 +133,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <h1 className="text-lg font-black text-slate-900 leading-tight tracking-tighter">DAIT HUB</h1>
             <p className="text-[10px] text-indigo-600 font-black uppercase tracking-[0.2em] mt-0.5">ICGRS Portal</p>
           </div>
+          {isAdminDashboard && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="ml-auto rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Hide sidebar"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
         
         <nav className="flex-1 px-6 space-y-1.5 overflow-y-auto custom-scrollbar">
@@ -150,9 +184,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 ml-[300px] flex flex-col min-h-screen">
+      <div className={`flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300 ${isAdminDashboard ? 'ml-0' : 'ml-[300px]'}`}>
         <header className="h-[96px] bg-white/80 backdrop-blur-md border-b border-slate-200 px-12 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
+            {isAdminDashboard && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="mr-1 rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 shadow-sm transition-all hover:border-indigo-200 hover:text-indigo-600"
+                aria-label="Show sidebar"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
             <h2 className="text-xl font-black text-slate-900 tracking-tight">Access Control: {currentUser.name}</h2>
             <div className="h-5 w-[1px] bg-slate-200 mx-2"></div>
             <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{currentUser.role} Level Authority</p>
@@ -193,7 +239,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </header>
 
-        <main className="p-12 max-w-[1600px] w-full flex-1 mx-auto">
+        <main className="w-full max-w-full xl:max-w-[1200px] px-4 sm:px-6 lg:px-8 py-8 flex-1 mx-auto">
           {children}
         </main>
       </div>

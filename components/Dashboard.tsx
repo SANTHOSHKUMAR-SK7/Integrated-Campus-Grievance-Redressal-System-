@@ -1,21 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getGrievances, getCurrentUser, subscribeToSession } from '../store';
-import { UserRole, Status, Grievance, ChatType } from '../types';
+import { Department, UserRole, Status, Grievance, ChatType } from '../types';
 import { COLORS } from '../constants';
 
 const Dashboard: React.FC = () => {
   const [user, setUser] = useState(getCurrentUser());
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'admin' | Department>('all');
   const navigate = useNavigate();
 
   const refresh = async () => {
     const data = await getGrievances();
+    console.log('Dashboard refresh - fetched grievances:', data);
     setGrievances(data);
   };
 
   useEffect(() => {
+    console.log('Dashboard useEffect - current user:', user);
     refresh();
     const cleanup = subscribeToSession(() => {
       setUser(getCurrentUser());
@@ -28,6 +31,7 @@ const Dashboard: React.FC = () => {
 
   if (user.role === UserRole.STUDENT) {
     const mine = grievances.filter((g) => g.studentId === user.id);
+    console.log('Student grievances (mine):', mine);
     const filteredMine = statusFilter === 'all' ? mine : mine.filter((g) => g.status === statusFilter);
     const stats = {
       total: mine.length,
@@ -37,15 +41,15 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-      <div className="space-y-8 animate-in fade-in duration-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard label="Total Filed" value={stats.total} subtext="Institutional record" icon="Filed" />
-          <StatCard label="Pending" value={stats.pending} subtext="Awaiting review" icon="Queue" color="text-amber-500" />
-          <StatCard label="In Progress" value={stats.progress} subtext="Staff handling" icon="Active" color="text-indigo-600" />
-          <StatCard label="Resolved" value={stats.resolved} subtext="Verified closed" icon="Done" color="text-emerald-600" />
+      <div className="w-full max-w-full xl:max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard label="Total Filed" value={stats.total} subtext="Institutional record" icon="Filed" variant="primary" />
+          <StatCard label="Pending" value={stats.pending} subtext="Awaiting review" icon="Queue" color="text-amber-500" variant="neutral" />
+          <StatCard label="In Progress" value={stats.progress} subtext="Staff handling" icon="Active" color="text-indigo-600" variant="neutral" />
+          <StatCard label="Resolved" value={stats.resolved} subtext="Verified closed" icon="Done" color="text-emerald-600" variant="success" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <ActionCard
             title="Lodge New Concern"
             desc="Use our AI-assisted filing system to submit institutional grievances with sentiment tracking."
@@ -95,6 +99,8 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{g.id}</span>
                   <span>&middot;</span>
+                  <span>{new Date(g.timestamp).toLocaleDateString()}</span>
+                  <span>&middot;</span>
                   <span className="text-indigo-600">{g.department}</span>
                   <span>&middot;</span>
                   <span className="flex items-center gap-1">
@@ -124,69 +130,135 @@ const Dashboard: React.FC = () => {
 
   const worklist = grievances.filter((g) => {
     if (user.role === UserRole.ADMIN) return true;
-    return g.assignedToId === user.id || g.department === user.department;
+    return g.assignedToId === user.id;
   });
   const filteredWorklist = statusFilter === 'all' ? worklist : worklist.filter((g) => g.status === statusFilter);
 
+  const getAssignmentGroup = (g: Grievance): 'admin' | Department => {
+    const assignedId = String(g.assignedToId || '').trim().toUpperCase();
+    return assignedId.startsWith('ADMIN') ? 'admin' : g.department;
+  };
+
+  const assignmentGroups = [
+    { label: 'All', value: 'all' as const, count: worklist.length },
+    { label: 'Admin Assigned', value: 'admin' as const, count: worklist.filter((g) => getAssignmentGroup(g) === 'admin').length },
+    ...Object.values(Department).map((department) => ({
+      label: department,
+      value: department as Department,
+      count: worklist.filter((g) => getAssignmentGroup(g) === department).length,
+    })),
+  ];
+
+  const filteredAssignmentWorklist = assignmentFilter === 'all'
+    ? filteredWorklist
+    : filteredWorklist.filter((g) => getAssignmentGroup(g) === assignmentFilter);
+
+  const getAssignmentLabel = (g: Grievance) => (getAssignmentGroup(g) === 'admin' ? 'Admin' : g.department);
+  const isAdminView = user.role === UserRole.ADMIN;
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <div className="flex justify-between items-end">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Case Manager</h2>
-          <p className="text-slate-500 font-medium">Resolving institutional concerns with AI-driven empathy.</p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Case Manager</h2>
+          <p className="text-slate-500 font-medium max-w-2xl">Resolving institutional concerns with AI-driven empathy through a streamlined worklist.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard label="Assigned" value={worklist.length} subtext="Active cases" icon="Case" />
-        <StatCard
-          label="Awaiting Reply"
-          value={worklist.filter((g) => {
-            const visibleMessages = (g.conversation || []).filter((message) => !message.type || message.type === ChatType.STUDENT_STAFF);
-            return visibleMessages.length > 0 && visibleMessages[visibleMessages.length - 1].senderRole === UserRole.STUDENT;
-          }).length}
-          subtext="Student last response"
-          icon="Inbox"
-          color="text-indigo-600"
-        />
-        <StatCard label="Urgent" value={worklist.filter((g) => g.sentiment === 'Angry' || g.sentiment === 'Urgent').length} subtext="Critical sentiment" icon="Alert" color="text-red-600" />
-        <StatCard label="Resolved" value={worklist.filter((g) => g.status === Status.RESOLVED).length} subtext="Case success" icon="Done" color="text-emerald-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-6">
+        <StatCard label="Assigned" value={worklist.length} subtext="Active cases" icon="Case" variant="primary" />
+        {isAdminView ? (
+          <StatCard label="Admin Assigned" value={assignmentGroups.find((item) => item.value === 'admin')?.count || 0} subtext="Fallback cases" icon="User" color="text-indigo-600" variant="neutral" />
+        ) : (
+          <StatCard label="Pending" value={worklist.filter((g) => g.status === Status.PENDING).length} subtext="Awaiting action" icon="Queue" color="text-amber-500" variant="neutral" />
+        )}
+        <StatCard label="Urgent" value={worklist.filter((g) => g.sentiment === 'Angry' || g.sentiment === 'Urgent').length} subtext="Critical sentiment" icon="Alert" color="text-red-600" variant="urgent" />
+        <StatCard label="Resolved" value={worklist.filter((g) => g.status === Status.RESOLVED).length} subtext="Case success" icon="Done" color="text-emerald-600" variant="success" />
       </div>
+
+      {isAdminView && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          {assignmentGroups
+            .filter((group) => group.value !== 'all')
+            .slice(0, 6)
+            .map((group) => (
+              <div key={group.value} className="h-full rounded-[32px] border border-slate-200 bg-slate-50 p-6 shadow-sm transition-all hover:-translate-y-0.5">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">{group.label}</p>
+                <p className="mt-5 text-3xl font-black text-slate-900">{group.count}</p>
+                <p className="text-[11px] text-slate-500 mt-3">Assigned cases</p>
+              </div>
+            ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-10 py-8 border-b border-slate-100 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Active Worklist</h3>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Showing {filteredWorklist.length} of {worklist.length}
-            </span>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Active Worklist</h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Showing {filteredAssignmentWorklist.length} of {worklist.length}
+              </span>
+            </div>
+            <div className={`grid gap-3 ${isAdminView ? 'sm:grid-cols-2 md:min-w-[420px]' : 'sm:grid-cols-1 md:min-w-[200px]'}`}>
+              <DropdownFilter
+                label="Status"
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value as 'all' | Status)}
+                options={FILTER_OPTIONS}
+              />
+              {isAdminView && (
+                <DropdownFilter
+                  label="Assignment"
+                  value={assignmentFilter}
+                  onChange={(value) => setAssignmentFilter(value as 'all' | 'admin' | Department)}
+                  options={[
+                    { label: 'All Assignments', value: 'all' },
+                    { label: 'Admin Assigned', value: 'admin' },
+                    ...Object.values(Department).map((department) => ({
+                      label: department,
+                      value: department,
+                    })),
+                  ]}
+                />
+              )}
+            </div>
           </div>
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} />
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
               <tr>
                 <th className="px-10 py-5">Case ID</th>
                 <th className="px-10 py-5">Summary</th>
+                <th className="px-10 py-5">Filed Date</th>
                 <th className="px-10 py-5">Sentiment</th>
                 <th className="px-10 py-5">Identity</th>
+                <th className="px-10 py-5">Assignment</th>
                 <th className="px-10 py-5">Status</th>
                 <th className="px-10 py-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredWorklist.map((g) => (
-                <tr key={g.id} className="hover:bg-indigo-50/30 transition-all cursor-pointer group" onClick={() => navigate('/manage', { state: { grievanceId: g.id } })}>
+              {filteredAssignmentWorklist.map((g) => (
+                <tr
+                  key={g.id}
+                  className="hover:bg-indigo-50/30 transition-all cursor-pointer group"
+                  onClick={() => navigate('/manage', { state: { grievanceId: g.id } })}
+                >
                   <td className="px-10 py-6 font-black text-slate-900 text-sm">#{g.id}</td>
                   <td className="px-10 py-6">
                     <p className="text-sm font-bold text-slate-800 line-clamp-1">{g.title || g.description}</p>
                     <p className="text-[10px] font-medium text-slate-400 mt-0.5">{g.department}</p>
                   </td>
+                  <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(g.timestamp).toLocaleDateString()}</span></td>
                   <td className="px-10 py-6">
                     <span
                       className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        g.sentiment === 'Angry' || g.sentiment === 'Urgent' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-500'
+                        g.sentiment === 'Angry' || g.sentiment === 'Urgent'
+                          ? 'bg-red-50 text-red-600 border border-red-100'
+                          : 'bg-slate-100 text-slate-500'
                       }`}
                     >
                       {g.sentiment || 'Neutral'}
@@ -200,6 +272,9 @@ const Dashboard: React.FC = () => {
                     )}
                   </td>
                   <td className="px-10 py-6">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{getAssignmentLabel(g)}</span>
+                  </td>
+                  <td className="px-10 py-6">
                     <span className={`${COLORS.status[g.status]} scale-90`}>{g.status}</span>
                   </td>
                   <td className="px-10 py-6 text-right">
@@ -209,9 +284,9 @@ const Dashboard: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              {filteredWorklist.length === 0 && (
+              {filteredAssignmentWorklist.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-10 py-16 text-center text-slate-400 text-sm font-medium italic">
+                  <td colSpan={7} className="px-10 py-16 text-center text-slate-400 text-sm font-medium italic">
                     No grievances found for the selected filter.
                   </td>
                 </tr>
@@ -224,31 +299,64 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const StatCard = ({ label, value, subtext, icon, color = 'text-slate-900' }) => (
-  <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
-    <div className="flex items-start justify-between gap-3">
-      <p className="text-sm font-semibold text-slate-600 tracking-tight">{label}</p>
-      <span className="text-[11px] font-black uppercase tracking-widest text-slate-400" aria-hidden="true">
-        {icon}
-      </span>
-    </div>
-    <div>
-      <p className={`text-4xl font-black tracking-tighter ${color}`}>{value}</p>
-      <p className="text-xs text-slate-400 font-medium mt-1">{subtext}</p>
-    </div>
-  </div>
-);
+type StatCardProps = {
+  label: string;
+  value: number;
+  subtext: string;
+  icon: string;
+  color?: string;
+  variant?: 'primary' | 'urgent' | 'success' | 'neutral';
+};
 
-const ActionCard = ({ title, desc, btnText, onClick, variant = 'primary' }) => (
-  <div className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
-    <div className="space-y-3">
+const StatCard: React.FC<StatCardProps> = ({ label, value, subtext, icon, color, variant = 'neutral' }) => {
+  const baseStyles = 'h-full flex flex-col justify-between rounded-[32px] border p-6 sm:p-8 shadow-sm transition-all hover:-translate-y-0.5';
+  const variantStyles = {
+    primary: 'bg-sky-50 border-sky-200 shadow-[0_20px_60px_-30px_rgba(14,165,233,0.2)]',
+    urgent: 'bg-rose-50 border-rose-200 shadow-[0_20px_60px_-30px_rgba(239,68,68,0.2)]',
+    success: 'bg-emerald-50 border-emerald-200 shadow-[0_20px_60px_-30px_rgba(16,185,129,0.18)]',
+    neutral: 'bg-white border-slate-200',
+  }[variant];
+  const labelClass = variant === 'primary' ? 'text-sky-700' : 'text-slate-600';
+  const subtextClass = variant === 'primary' ? 'text-sky-600' : 'text-slate-400';
+  const iconClass = variant === 'primary' ? 'text-sky-500' : 'text-slate-400';
+  const valueColor = color || (variant === 'primary' ? 'text-sky-950' : 'text-slate-900');
+
+  return (
+    <div className={`${baseStyles} ${variantStyles}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className={`text-sm font-semibold tracking-tight ${labelClass}`}>{label}</p>
+        <span className={`text-[11px] font-black uppercase tracking-widest ${iconClass}`} aria-hidden="true">
+          {icon}
+        </span>
+      </div>
+      <div>
+        <p className={`text-4xl font-black tracking-tighter ${valueColor}`}>{value}</p>
+        <p className={`text-xs font-medium mt-1 ${subtextClass}`}>{subtext}</p>
+      </div>
+    </div>
+  );
+};
+
+type ActionCardProps = {
+  title: string;
+  desc: string;
+  btnText: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+};
+
+const ActionCard: React.FC<ActionCardProps> = ({ title, desc, btnText, onClick, variant = 'primary' }) => (
+  <div className="h-full flex flex-col justify-between bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm transition-all hover:-translate-y-0.5">
+    <div className="space-y-4">
       <h3 className="text-2xl font-black text-slate-900 tracking-tight">{title}</h3>
       <p className="text-sm text-slate-500 font-medium leading-relaxed">{desc}</p>
     </div>
     <button
       onClick={onClick}
       className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-        variant === 'primary' ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-200' : 'bg-slate-50 border border-slate-200 text-slate-900 hover:bg-white'
+        variant === 'primary'
+          ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-200'
+          : 'bg-slate-50 border border-slate-200 text-slate-900 hover:bg-white'
       }`}
     >
       {btnText}
@@ -256,7 +364,9 @@ const ActionCard = ({ title, desc, btnText, onClick, variant = 'primary' }) => (
   </div>
 );
 
-const FILTER_OPTIONS: Array<{ label: string; value: 'all' | Status }> = [
+type StatusOption = { label: string; value: 'all' | Status };
+
+const FILTER_OPTIONS: StatusOption[] = [
   { label: 'All', value: 'all' },
   { label: 'Pending', value: Status.PENDING },
   { label: 'In Progress', value: Status.IN_PROGRESS },
@@ -290,6 +400,43 @@ const StatusFilter = ({
       );
     })}
   </div>
+);
+
+const DropdownFilter = ({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+}) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</span>
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-11 text-xs font-black uppercase tracking-widest text-slate-700 outline-none transition-all focus:border-indigo-300 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  </label>
 );
 
 export default Dashboard;
