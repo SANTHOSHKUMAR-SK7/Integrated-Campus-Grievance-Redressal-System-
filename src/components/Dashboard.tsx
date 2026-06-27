@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getGrievances, getCurrentUser, subscribeToSession } from '../store';
 import { Department, UserRole, Status, Grievance, ChatType } from '../types';
 import { COLORS } from '../constants';
+import { getEscalationState } from '../utils/escalationUtils';
 
 const Dashboard: React.FC = () => {
   const [user, setUser] = useState(getCurrentUser());
@@ -28,6 +29,8 @@ const Dashboard: React.FC = () => {
   }, []);
 
   if (!user) return null;
+
+  const now = Date.now();
 
   if (user.role === UserRole.STUDENT) {
     const mine = grievances.filter((g) => g.studentId === user.id);
@@ -94,7 +97,12 @@ const Dashboard: React.FC = () => {
               >
                 <div className="flex justify-between items-start mb-3">
                   <h4 className="font-bold text-slate-800">{g.title || 'General Grievance'}</h4>
-                  <span className={COLORS.status[g.status]}>{g.status}</span>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {getEscalationState(g, now).isOverdue && (
+                      <OverdueBadge grievance={g} now={now} />
+                    )}
+                    <span className={COLORS.status[g.status]}>{g.status}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{g.id}</span>
@@ -133,6 +141,7 @@ const Dashboard: React.FC = () => {
     return g.assignedToId === user.id;
   });
   const filteredWorklist = statusFilter === 'all' ? worklist : worklist.filter((g) => g.status === statusFilter);
+  const overdueCount = worklist.filter((g) => getEscalationState(g, now).isOverdue).length;
 
   const getAssignmentGroup = (g: Grievance): 'admin' | Department => {
     const assignedId = String(g.assignedToId || '').trim().toUpperCase();
@@ -172,6 +181,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <StatCard label="Pending" value={worklist.filter((g) => g.status === Status.PENDING).length} subtext="Awaiting action" icon="Queue" color="text-amber-500" variant="neutral" />
         )}
+        <StatCard label="Overdue" value={overdueCount} subtext="Needs attention" icon="SLA" color="text-red-600" variant="urgent" />
         <StatCard label="Urgent" value={worklist.filter((g) => g.sentiment === 'Angry' || g.sentiment === 'Urgent').length} subtext="Critical sentiment" icon="Alert" color="text-red-600" variant="urgent" />
         <StatCard label="Resolved" value={worklist.filter((g) => g.status === Status.RESOLVED).length} subtext="Case success" icon="Done" color="text-emerald-600" variant="success" />
       </div>
@@ -236,6 +246,7 @@ const Dashboard: React.FC = () => {
                 <th className="px-10 py-5">Sentiment</th>
                 <th className="px-10 py-5">Identity</th>
                 <th className="px-10 py-5">Assignment</th>
+                <th className="px-10 py-5">SLA</th>
                 <th className="px-10 py-5">Status</th>
                 <th className="px-10 py-5 text-right">Actions</th>
               </tr>
@@ -275,6 +286,9 @@ const Dashboard: React.FC = () => {
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{getAssignmentLabel(g)}</span>
                   </td>
                   <td className="px-10 py-6">
+                    <OverdueBadge grievance={g} now={now} />
+                  </td>
+                  <td className="px-10 py-6">
                     <span className={`${COLORS.status[g.status]} scale-90`}>{g.status}</span>
                   </td>
                   <td className="px-10 py-6 text-right">
@@ -286,7 +300,7 @@ const Dashboard: React.FC = () => {
               ))}
               {filteredAssignmentWorklist.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-10 py-16 text-center text-slate-400 text-sm font-medium italic">
+                  <td colSpan={9} className="px-10 py-16 text-center text-slate-400 text-sm font-medium italic">
                     No grievances found for the selected filter.
                   </td>
                 </tr>
@@ -438,5 +452,31 @@ const DropdownFilter = ({
     </div>
   </label>
 );
+
+const OverdueBadge = ({ grievance, now }: { grievance: Grievance; now: number }) => {
+  const escalation = getEscalationState(grievance, now);
+  const isEscalated = escalation.stage === 'escalation-due';
+
+  if (!escalation.isOverdue) {
+    return (
+      <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-600 border border-emerald-100">
+        On Track
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest border ${
+        isEscalated
+          ? 'bg-red-50 text-red-600 border-red-100'
+          : 'bg-amber-50 text-amber-700 border-amber-100'
+      }`}
+      title={`No staff action for ${escalation.inactiveHours} hours`}
+    >
+      {isEscalated ? 'Escalated' : 'Reminder Due'}
+    </span>
+  );
+};
 
 export default Dashboard;

@@ -1,14 +1,16 @@
-# Run and deploy 
+# Run and deploy
 
-This contains everything you need to run your app locally.
+This project uses:
+- `server.ts` at the repo root for the active Express/MongoDB backend
+- `src/` for the React frontend source
+- `backend/main.py` as a reference-only FastAPI blueprint that is not part of `npm run dev`
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Configure environment variables in `.env`
 3. Run the app:
    `npm run dev`

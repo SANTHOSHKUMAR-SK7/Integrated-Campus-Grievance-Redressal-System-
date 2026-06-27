@@ -292,6 +292,93 @@ async function notifyManyUsers(
   }
 }
 
+const hasNotificationAfter = (grievance: any, type: string, cutoff: number) => (
+  (grievance.notificationsSent || []).some((entry: any) => (
+    entry?.type === type && Number(entry?.timestamp || 0) >= cutoff
+  ))
+);
+
+let inactiveGrievanceMonitorRun: Promise<void> | null = null;
+
+async function monitorInactiveGrievances() {
+  if (inactiveGrievanceMonitorRun) {
+    return inactiveGrievanceMonitorRun;
+  }
+
+  inactiveGrievanceMonitorRun = (async () => {
+  if (mongoose.connection.readyState !== 1) return;
+
+  const now = Date.now();
+  const actionableStatuses = ['pending', 'in-progress'];
+  const staleGrievances = await Grievance.find({
+    status: { $in: actionableStatuses },
+    lastStatusChange: { $lte: now - STAFF_REMINDER_DELAY_MS }
+  });
+
+  for (const grievance of staleGrievances) {
+    const lastActionAt = Number(grievance.lastStatusChange || grievance.timestamp || now);
+    const inactiveFor = now - lastActionAt;
+    const caseLinkId = grievance.id;
+
+    if (
+      inactiveFor >= STAFF_REMINDER_DELAY_MS &&
+      grievance.assignedToId &&
+      !hasNotificationAfter(grievance, STAFF_REMINDER_NOTIFICATION_TYPE, lastActionAt)
+    ) {
+      const reminderMessage = `Grievance #${caseLinkId} has had no staff action for 24 hours. Please accept, update, resolve, or transfer the case.`;
+      await notifyManyUsers(
+        [grievance.assignedToId],
+        'Action Required: Grievance Reminder',
+        reminderMessage,
+        'system',
+        caseLinkId
+      );
+      grievance.notificationsSent.push({
+        type: STAFF_REMINDER_NOTIFICATION_TYPE,
+        timestamp: now,
+        message: reminderMessage
+      });
+    }
+
+    if (
+      inactiveFor >= ADMIN_ESCALATION_DELAY_MS &&
+      !hasNotificationAfter(grievance, ADMIN_ESCALATION_NOTIFICATION_TYPE, lastActionAt)
+    ) {
+      const adminIds = await getAdminIds();
+      const escalationMessage = `Grievance #${caseLinkId} has had no staff action for 48 hours and needs administrative review.`;
+      await notifyManyUsers(
+        adminIds,
+        'Escalation: Inactive Grievance',
+        escalationMessage,
+        'system',
+        caseLinkId
+      );
+      grievance.notificationsSent.push({
+        type: ADMIN_ESCALATION_NOTIFICATION_TYPE,
+        timestamp: now,
+        message: escalationMessage
+      });
+      grievance.history.push({
+        status: grievance.status,
+        timestamp: now,
+        userId: 'SYSTEM',
+        remark: 'Automatically escalated to admin because no staff action was recorded within 48 hours.'
+      });
+    }
+
+    if (grievance.isModified()) {
+      await grievance.save();
+    }
+  }
+  })();
+
+  try {
+    await inactiveGrievanceMonitorRun;
+  } finally {
+    inactiveGrievanceMonitorRun = null;
+  }
+}
+
 async function autoAssignExistingGrievancesToStaff(staffUser: { id: string; name: string; department?: string }) {
   const rawDepartment = String(staffUser.department || '').trim();
   if (!rawDepartment) {
@@ -447,6 +534,12 @@ const computeSentiment = (text: string) => {
 
 const createGrievanceId = () => `DAIT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 const PASSWORD_POLICY_MESSAGE = 'Password must be at least 8 characters and include uppercase, lowercase, and a number.';
+const HOUR_MS = 60 * 60 * 1000;
+const STAFF_REMINDER_DELAY_MS = 24 * HOUR_MS;
+const ADMIN_ESCALATION_DELAY_MS = 48 * HOUR_MS;
+const ESCALATION_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+const STAFF_REMINDER_NOTIFICATION_TYPE = 'STAFF_ACTION_REMINDER';
+const ADMIN_ESCALATION_NOTIFICATION_TYPE = 'ADMIN_INACTIVITY_ESCALATION';
 const isStrongPassword = (password: string) => {
   const value = String(password || '');
   return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
@@ -1435,6 +1528,12 @@ async function startServer() {
     await seed();
     await cleanupOldNotifications(30);
     setInterval(() => cleanupOldNotifications(30), 24 * 60 * 60 * 1000);
+    await monitorInactiveGrievances();
+    setInterval(() => {
+      monitorInactiveGrievances().catch((error) => {
+        console.error('Inactive grievance monitor failure:', error);
+      });
+    }, ESCALATION_CHECK_INTERVAL_MS);
   } catch (error) {
     console.error('Failed to connect to MongoDB during startup:', error);
   }

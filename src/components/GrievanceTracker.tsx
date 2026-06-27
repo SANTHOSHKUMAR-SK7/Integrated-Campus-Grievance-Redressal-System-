@@ -7,6 +7,7 @@ import { ICONS, COLORS } from '../constants';
 import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
 import FeedbackToast from './FeedbackToast';
+import { getEscalationState } from '../utils/escalationUtils';
 
 const FILTER_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'All', value: 'all' },
@@ -133,6 +134,7 @@ const GrievanceTracker: React.FC = () => {
   };
 
   if (!user) return null;
+  const now = Date.now();
 
   return (
     <>
@@ -196,7 +198,14 @@ const GrievanceTracker: React.FC = () => {
                         {g.isAnonymous ? 'Anonymous' : 'Profile Linked'}
                       </span>
                     </td>
-                    <td className="px-10 py-6"><span className={COLORS.status[g.status]}>{g.status}</span></td>
+                    <td className="px-10 py-6">
+                      <div className="flex flex-wrap gap-2">
+                        <span className={COLORS.status[g.status]}>{g.status}</span>
+                        {getEscalationState(g, now).isOverdue && (
+                          <StudentEscalationBadge grievance={g} now={now} />
+                        )}
+                      </div>
+                    </td>
                     <td className="px-10 py-6"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{g.department}</span></td>
                     <td className="px-10 py-6 text-right">
                       <button className="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-all">Interact</button>
@@ -273,6 +282,9 @@ const GrievanceTracker: React.FC = () => {
                 }`}>
                   {selectedGrievance.isAnonymous ? 'Anonymous Filing' : 'Profile Linked Filing'}
                 </span>
+                {getEscalationState(selectedGrievance, now).isOverdue && (
+                  <StudentEscalationBadge grievance={selectedGrievance} now={now} />
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {user.role === 'Student' && selectedGrievance.studentId === user.id && (
@@ -420,6 +432,25 @@ const GrievanceTracker: React.FC = () => {
         </div>
       )}
     </>
+  );
+};
+
+const StudentEscalationBadge = ({ grievance, now }: { grievance: Grievance; now: number }) => {
+  const escalation = getEscalationState(grievance, now);
+  if (!escalation.isOverdue) return null;
+
+  const isEscalated = escalation.stage === 'escalation-due';
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest border ${
+        isEscalated
+          ? 'bg-red-50 text-red-600 border-red-100'
+          : 'bg-amber-50 text-amber-700 border-amber-100'
+      }`}
+      title={`No staff action for ${escalation.inactiveHours} hours`}
+    >
+      {isEscalated ? 'Escalated' : 'Delayed'}
+    </span>
   );
 };
 

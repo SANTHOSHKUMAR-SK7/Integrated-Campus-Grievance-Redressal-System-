@@ -9,6 +9,7 @@ import { generateGrievanceReport } from '../services/reportService';
 import Timeline from './Timeline';
 import AttachmentViewer from './AttachmentViewer';
 import { Download, Sparkles } from 'lucide-react';
+import { getEscalationState } from '../utils/escalationUtils';
 
 const ManagementConsole: React.FC = () => {
   const location = useLocation();
@@ -266,6 +267,10 @@ const ManagementConsole: React.FC = () => {
     if (staffMember.department !== transferDept) return false;
     return staffMember.id !== grievance.assignedToId;
   });
+  const escalationState = getEscalationState(grievance);
+  const escalationTone = escalationState.stage === 'escalation-due'
+    ? 'border-red-100 bg-red-50 text-red-700'
+    : 'border-amber-100 bg-amber-50 text-amber-700';
 
   return (
     <div className="flex flex-col xl:flex-row gap-6 h-[calc(100vh-160px)] animate-in fade-in duration-500 overflow-hidden">
@@ -276,8 +281,26 @@ const ManagementConsole: React.FC = () => {
         <div className="bg-white rounded-[32px] border border-slate-200 p-6 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-black text-slate-900 text-lg tracking-tight">#{grievance.id}</h3>
-            <span className={`${COLORS.status[grievance.status]} px-3 py-1 rounded-lg text-[10px] font-bold uppercase`}>{grievance.status}</span>
+            <div className="flex flex-wrap justify-end gap-2">
+              {escalationState.isOverdue && (
+                <span className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase ${escalationTone}`}>
+                  {escalationState.stage === 'escalation-due' ? 'Escalated' : 'Reminder Due'}
+                </span>
+              )}
+              <span className={`${COLORS.status[grievance.status]} px-3 py-1 rounded-lg text-[10px] font-bold uppercase`}>{grievance.status}</span>
+            </div>
           </div>
+
+          {escalationState.isOverdue && (
+            <div className={`mb-6 rounded-2xl border p-4 ${escalationTone}`}>
+              <p className="text-[10px] font-black uppercase tracking-widest">
+                {escalationState.stage === 'escalation-due' ? 'Admin Escalation Active' : 'Staff Reminder Active'}
+              </p>
+              <p className="mt-2 text-xs font-bold leading-relaxed">
+                No staff action has been recorded for {escalationState.inactiveHours} hours. Update, resolve, or transfer this case to clear the delay window.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3 mb-6">
             <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
